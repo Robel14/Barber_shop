@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AURA & BLADE | Premium Barber Shop & Hair Salon</title>
+  <meta name="description" content="Modern premium barber shop & hair salon featuring VIP lounge services, mobile concierge grooming, and trilingual online booking.">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Quick Info Bar -->
+  <div class="info-bar">
+    <div class="info-item">
+      <i class="fa-solid fa-clock"></i> <span data-i18n="infoHours">Mon - Sat: 9:00 AM - 9:00 PM | Sun: 10:00 AM - 6:00 PM</span>
+    </div>
+    <div class="info-item">
+      <i class="fa-solid fa-location-dot"></i> <span data-i18n="infoAddress">100 Grand Avenue, Executive Plaza Suite 400</span>
+    </div>
+    <div class="info-item">
+      <i class="fa-solid fa-phone"></i> <span>+1 (555) 839-2000</span>
+    </div>
+  </div>
+
+  <!-- Header Navigation Bar -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-scissors"></i>
+      </div>
+      <div class="brand-text">
+        <h1>AURA & BLADE</h1>
+        <p data-i18n="brandSubtitle">EXECUTIVE BARBER & SALON</p>
+      </div>
+    </div>
+
+    <!-- Navigation Links -->
+    <ul class="nav-links">
+      <li><a href="#hero" data-i18n="navHome">Home</a></li>
+      <li><a href="#about" data-i18n="navAbout">About</a></li>
+      <li><a href="#services" data-i18n="navServices">Services</a></li>
+      <li><a href="#team" data-i18n="navTeam">Barbers</a></li>
+      <li><a href="#gallery" data-i18n="navGallery">Gallery</a></li>
+      <li><a href="#reviews" data-i18n="navReviews">Reviews</a></li>
+      <li><a href="#contact" data-i18n="navContact">Contact</a></li>
+    </ul>
+
+    <div class="nav-controls">
+      <!-- Multilingual Language Selector (EN, AM, AR) -->
+      <select id="langSelector" class="lang-select" onchange="changeLanguage(this.value)">
+        <option value="en">🌐 English</option>
+        <option value="am">🇪🇹 አማርኛ (Amharic)</option>
+        <option value="ar">🇦🇪 العربية (Arabic)</option>
+      </select>
+
+      <button class="btn-secondary btn-sm" onclick="scrollToSection('myBookingsSection')">
+        <i class="fa-solid fa-ticket"></i> <span data-i18n="navPasses">My Passes</span> <span id="navBookingCount" class="badge" style="margin-left:0.3rem;">0</span>
+      </button>
+
+      <button class="btn-primary" onclick="openBookingWizard()">
+        <i class="fa-solid fa-calendar-plus"></i> <span data-i18n="btnBookNow">Book Now</span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="container">
+    
+    <!-- Hero Section -->
+    <header id="hero" class="hero">
+      <img src="assets/hero.jpg" alt="Luxury Barbershop Atmosphere" class="hero-bg">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <div class="hero-subtitle" data-i18n="heroSubtitle">
+          <i class="fa-solid fa-crown"></i> Bespoke Men's Grooming Sanctuary
+        </div>
+        <h1 class="hero-title" data-i18n="heroTitle">Precision Cuts, <span>VIP Lounge</span> & Mobile Concierge</h1>
+        <p class="hero-desc" data-i18n="heroDesc">
+          Experience executive grooming tailored to your style. Visit our luxury private suite or have our Master Barbers dispatched to your home, office, or hotel.
+        </p>
+        <div class="hero-actions">
+          <button class="btn-primary" onclick="openBookingWizard()">
+            <i class="fa-solid fa-calendar-days"></i> <span data-i18n="btnBookAppointment">Book Appointment</span>
+          </button>
+          <button class="btn-secondary" onclick="scrollToSection('services')">
+            <i class="fa-solid fa-scissors"></i> <span data-i18n="btnExploreServices">Explore Services</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- About Us & Salon Vibe Section -->
+    <section id="about" class="about-section">
+      <div class="about-text">
+        <h2 data-i18n="aboutTitle">Craftsmanship & Atmosphere</h2>
+        <p data-i18n="aboutDesc1">
+          AURA & BLADE was founded on the principle of uncompromised gentleman's grooming. We combine timeless barbering traditions with modern styling precision in an atmosphere of refined luxury.
+        </p>
+        <p data-i18n="aboutDesc2">
+          Every session includes tailored scalp consultation, heated aromatherapy steam towels, and complimentary top-shelf single malt whiskey or double espresso.
+        </p>
+        <div class="about-perks">
+          <div class="about-perk-item">
+            <i class="fa-solid fa-check"></i> <span data-i18n="perk1">Private VIP Suites</span>
+          </div>
+          <div class="about-perk-item">
+            <i class="fa-solid fa-check"></i> <span data-i18n="perk2">Hot Towel Steam</span>
+          </div>
+          <div class="about-perk-item">
+            <i class="fa-solid fa-check"></i> <span data-i18n="perk3">Beverage & Coffee Bar</span>
+          </div>
+          <div class="about-perk-item">
+            <i class="fa-solid fa-check"></i> <span data-i18n="perk4">Mobile Concierge Setup</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <img src="assets/hero.jpg" alt="Salon Atmosphere" class="about-img">
+      </div>
+    </section>
+
+    <!-- Services Offered Section -->
+    <section id="services" style="margin-bottom: 4rem;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fa-solid fa-scissors"></i> <span data-i18n="servicesTitle">Services Offered</span>
+        </h2>
+        <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="servicesSubtitle">Click 'Book This Service' to preselect and schedule</span>
+      </div>
+
+      <div id="servicesGrid" class="services-grid">
+        <!-- Injected dynamically via app.js -->
+      </div>
+    </section>
+
+    <!-- Barber / Artist Profiles (Team Section) -->
+    <section id="team" style="margin-bottom: 4rem;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fa-solid fa-user-tie"></i> <span data-i18n="teamTitle">Master Craftsmen & Stylists</span>
+        </h2>
+        <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="teamSubtitle">Directly book with your favorite specialist</span>
+      </div>
+
+      <div id="teamGrid" class="team-grid">
+        <!-- Injected dynamically via app.js -->
+      </div>
+    </section>
+
+    <!-- Gallery Section (Portfolio of Work) -->
+    <section id="gallery" style="margin-bottom: 4rem;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fa-solid fa-camera"></i> <span data-i18n="galleryTitle">Portfolio & Gallery</span>
+        </h2>
+        <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="gallerySubtitle">Filter by category or click to expand lightbox preview</span>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="gallery-filter">
+        <button class="btn-secondary btn-sm active" onclick="filterGallery('all', this)" data-i18n="catAll">All Work</button>
+        <button class="btn-secondary btn-sm" onclick="filterGallery('fades', this)" data-i18n="catFades">Taper & Fades</button>
+        <button class="btn-secondary btn-sm" onclick="filterGallery('beards', this)" data-i18n="catBeards">Beard Sculpting</button>
+        <button class="btn-secondary btn-sm" onclick="filterGallery('haircuts', this)" data-i18n="catCuts">Classic Haircuts</button>
+        <button class="btn-secondary btn-sm" onclick="filterGallery('styling', this)" data-i18n="catStyling">VIP Styling</button>
+      </div>
+
+      <div id="galleryGrid" class="gallery-grid">
+        <!-- Injected dynamically via app.js -->
+      </div>
+    </section>
+
+    <!-- Customer Reviews & Social Proof -->
+    <section id="reviews" style="margin-bottom: 4rem;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fa-solid fa-star"></i> <span data-i18n="reviewsTitle">Customer Reviews & Badges</span>
+        </h2>
+        <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="reviewsSubtitle">Rated 5.0 Stars on Google & Verified Clients</span>
+      </div>
+
+      <div id="reviewsGrid" class="reviews-grid">
+        <!-- Injected dynamically via app.js -->
+      </div>
+    </section>
+
+    <!-- My Active Bookings Section -->
+    <section id="myBookingsSection" style="margin-bottom: 4rem;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fa-solid fa-ticket"></i> <span data-i18n="passesTitle">My Active Booking Passes</span>
+        </h2>
+        <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="passesSubtitle">View, export, or print your upcoming sessions</span>
+      </div>
+
+      <div id="myBookingsGrid" class="services-grid">
+        <!-- Injected dynamically via app.js -->
+      </div>
+    </section>
+
+    <!-- Location & Contact Details Section -->
+    <section id="contact" style="margin-bottom: 4rem; background:#FFFFFF; border:1px solid var(--border-black); border-radius:var(--radius-lg); padding:3rem; box-shadow:var(--shadow-card);">
+      <div class="section-header" style="border:none; margin-bottom:1rem;">
+        <h2 class="section-title">
+          <i class="fa-solid fa-location-dot"></i> <span data-i18n="contactTitle">Location & Operating Hours</span>
+        </h2>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:2.5rem;">
+        <div>
+          <h3 style="color:#000; margin-bottom:1rem;" data-i18n="hoursHeading">Operating Hours</h3>
+          <p style="color:var(--text-secondary); margin-bottom:0.5rem;"><strong data-i18n="weekdays">Monday - Saturday:</strong> 9:00 AM - 9:00 PM</p>
+          <p style="color:var(--text-secondary); margin-bottom:1.5rem;"><strong data-i18n="sunday">Sunday:</strong> 10:00 AM - 6:00 PM</p>
+
+          <h3 style="color:#000; margin-bottom:0.75rem;" data-i18n="policyHeading">Shop Policy Guidelines</h3>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.4rem;" data-i18n="policy1">• Cancellations must be made at least 2 hours prior to session.</p>
+          <p style="font-size:0.85rem; color:var(--text-muted);" data-i18n="policy2">• Grace period of 10 minutes for late arrivals.</p>
+        </div>
+
+        <div>
+          <h3 style="color:#000; margin-bottom:1rem;" data-i18n="addressHeading">Salon Location & Phone</h3>
+          <p style="color:var(--text-secondary); margin-bottom:0.5rem;"><i class="fa-solid fa-map-pin"></i> 100 Grand Avenue, Executive Plaza Suite 400</p>
+          <p style="color:var(--text-secondary); margin-bottom:0.5rem;"><i class="fa-solid fa-phone"></i> +1 (555) 839-2000</p>
+          <p style="color:var(--text-secondary); margin-bottom:1.5rem;"><i class="fa-solid fa-envelope"></i> concierge@aurablade.com</p>
+
+          <h3 style="color:#000; margin-bottom:0.75rem;" data-i18n="socialHeading">Follow Us</h3>
+          <div style="display:flex; gap:1rem; font-size:1.4rem;">
+            <a href="#" style="color:#000;"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" style="color:#000;"><i class="fa-brands fa-tiktok"></i></a>
+            <a href="#" style="color:#000;"><i class="fa-brands fa-facebook"></i></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div>
+      &copy; 2026 AURA & BLADE Barber Shop & Hair Salon. All Rights Reserved.
+    </div>
+  </footer>
+
+  <!-- 6-STEP MULTI-STEP BOOKING WIZARD MODAL -->
+  <div id="bookingModal" class="modal-backdrop">
+    <div class="modal-content">
+      
+      <!-- Modal Header -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; padding-bottom:0.75rem; border-bottom:1px solid var(--border-black);">
+        <h2 style="font-size:1.3rem; color:#000; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-calendar-check"></i> <span data-i18n="wizardHeader">Appointment Reservation</span>
+        </h2>
+        <button onclick="closeBookingWizard()" style="font-size:1.5rem; color:var(--text-muted); cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Visual Stepper Progress Bar (Step 1 to 6) -->
+      <div class="stepper-bar">
+        <div class="step-node active" id="stepNode1">1</div>
+        <div class="step-node" id="stepNode2">2</div>
+        <div class="step-node" id="stepNode3">3</div>
+        <div class="step-node" id="stepNode4">4</div>
+        <div class="step-node" id="stepNode5">5</div>
+        <div class="step-node" id="stepNode6">6</div>
+      </div>
+
+      <!-- Step Container Elements -->
+      <div id="wizardStepContent">
+        <!-- JS rendered step screens -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Lightbox Preview Modal -->
+  <div id="lightboxModal" class="lightbox-backdrop" onclick="closeLightbox()">
+    <div class="lightbox-content" onclick="event.stopPropagation()">
+      <img id="lightboxImg" src="" alt="Full Screen Work Preview">
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Logic JS -->
+  <script src="app.js"></script>
+
+</body>
+</html>

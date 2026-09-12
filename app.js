@@ -21,7 +21,9 @@ let firebaseDb = null;
 let firebaseReviewsRef = null;
 let firebaseBarbersRef = null;
 let firebaseGalleryRef = null;
+let firebaseBookingsRef = null;
 let firebaseLiveReviews = []; // Updated in real-time
+let firebaseLiveBookings = []; // Updated in real-time
 
 function initFirebase() {
   try {
@@ -32,6 +34,7 @@ function initFirebase() {
     firebaseReviewsRef = firebaseDb.ref('reviews');
     firebaseBarbersRef = firebaseDb.ref('barbers');
     firebaseGalleryRef = firebaseDb.ref('gallery');
+    firebaseBookingsRef = firebaseDb.ref('bookings');
 
     // 1. Real-time listener: reviews
     firebaseReviewsRef.orderByChild('timestamp').on('value', (snapshot) => {
@@ -39,10 +42,15 @@ function initFirebase() {
         firebaseLiveReviews = [];
         snapshot.forEach((child) => {
           const item = child.val();
-          item.id = child.key;
+          item.firebaseKey = child.key;
+          item.id = item.id || child.key;
           firebaseLiveReviews.unshift(item); // newest first
         });
         renderReviews();
+        if (isAdminLoggedIn()) {
+          renderAdminReviews();
+          renderAdminOverview();
+        }
       } else {
         // Seed initial reviews if empty
         DEFAULT_REVIEWS.forEach(r => firebaseReviewsRef.push(r));
@@ -62,6 +70,10 @@ function initFirebase() {
         if (list.length > 0) {
           BARBERS = list;
           renderTeam();
+          if (isAdminLoggedIn()) {
+            renderAdminBarbers();
+            renderAdminOverview();
+          }
         }
       } else {
         // Seed initial barbers if empty
@@ -82,10 +94,31 @@ function initFirebase() {
         if (list.length > 0) {
           GALLERY_ITEMS = list;
           renderGallery('all');
+          if (isAdminLoggedIn()) {
+            renderAdminGallery();
+            renderAdminOverview();
+          }
         }
       } else {
         // Seed initial gallery if empty
         DEFAULT_GALLERY.forEach(g => firebaseGalleryRef.push(g));
+      }
+    });
+
+    // 4. Real-time listener: bookings (shared salon-wide)
+    firebaseBookingsRef.orderByChild('createdAt').on('value', (snapshot) => {
+      firebaseLiveBookings = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const b = child.val();
+          b.firebaseKey = child.key;
+          b.id = b.id || child.key;
+          firebaseLiveBookings.unshift(b); // newest first
+        });
+      }
+      if (isAdminLoggedIn()) {
+        renderAdminAppointments();
+        renderAdminOverview();
       }
     });
   } catch (err) {
@@ -495,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderReviews();  // initial render (shows default reviews while Firebase loads)
   renderMyBookings();
   updateI18nTexts();
+
   // Lazy-init the map when the contact section comes into view
   const mapEl = document.getElementById('map');
   if (mapEl) {
@@ -507,6 +541,25 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }, { threshold: 0.1 });
     observer.observe(mapEl);
+  }
+
+  // Check if opened with #admin hash
+  if (window.location.hash === '#admin') {
+    setTimeout(openAdminLogin, 350);
+  }
+});
+
+// Admin shortcut & hash listener
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#admin') {
+    openAdminLogin();
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+    e.preventDefault();
+    openAdminLogin();
   }
 });
 
@@ -1225,8 +1278,18 @@ function confirmFinalBooking(name, phone, email, beverage) {
     custEmail: email,
     beverage: beverage,
     price: selectedService.price,
-    status: 'CONFIRMED'
+    status: 'CONFIRMED',
+    createdAt: Date.now()
   };
+
+  if (firebaseDb && firebaseBookingsRef) {
+    try {
+      const newRef = firebaseBookingsRef.push(booking);
+      booking.firebaseKey = newRef.key;
+    } catch (err) {
+      console.warn('Firebase booking push failed:', err);
+    }
+  }
 
   const bookings = getBookings();
   bookings.unshift(booking);
@@ -1388,3 +1451,768 @@ function showToast(msg) {
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
+
+/* ==========================================================================
+   ADMIN PORTAL & SALON MANAGEMENT LOGIC
+   ========================================================================== */
+
+const ADMIN_PASS_KEY = 'aura_blade_admin_pass_v1';
+const ADMIN_AUTH_KEY = 'aura_blade_admin_auth_v1';
+let currentAdminFilter = 'all';
+
+function getAdminPasscode() {
+  return localStorage.getItem(ADMIN_PASS_KEY) || 'admin123';
+}
+
+function setAdminPasscode(pass) {
+  localStorage.setItem(ADMIN_PASS_KEY, pass);
+}
+
+function isAdminLoggedIn() {
+  return sessionStorage.getItem(ADMIN_AUTH_KEY) === 'true';
+}
+
+function setAdminAuth(val) {
+  if (val) {
+    sessionStorage.setItem(ADMIN_AUTH_KEY, 'true');
+  } else {
+    sessionStorage.removeItem(ADMIN_AUTH_KEY);
+  }
+}
+
+// --- Admin Login & Auth Modals ---
+
+function openAdminLogin() {
+  if (isAdminLoggedIn()) {
+    openAdminDashboard();
+    return;
+  }
+  const modal = document.getElementById('adminLoginModal');
+  if (modal) {
+    modal.classList.add('active');
+    const input = document.getElementById('adminPasscodeInput');
+    if (input) {
+      input.value = '';
+      setTimeout(() => input.focus(), 150);
+    }
+    const err = document.getElementById('adminLoginError');
+    if (err) err.style.display = 'none';
+  }
+}
+
+function closeAdminLogin() {
+  const modal = document.getElementById('adminLoginModal');
+  if (modal) modal.classList.remove('active');
+  if (window.location.hash === '#admin') {
+    history.replaceState(null, null, ' ');
+  }
+}
+
+function togglePasscodeVisibility() {
+  const input = document.getElementById('adminPasscodeInput');
+  const eye = document.getElementById('adminPasscodeEye');
+  if (!input || !eye) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    eye.className = 'fa-regular fa-eye-slash';
+  } else {
+    input.type = 'password';
+    eye.className = 'fa-regular fa-eye';
+  }
+}
+
+function submitAdminLogin(e) {
+  e.preventDefault();
+  const input = document.getElementById('adminPasscodeInput');
+  const err = document.getElementById('adminLoginError');
+  if (!input) return;
+
+  const entered = input.value.trim();
+  const expected = getAdminPasscode();
+
+  if (entered === expected) {
+    setAdminAuth(true);
+    closeAdminLogin();
+    openAdminDashboard();
+    showToast('🔓 Welcome to Staff & Admin Portal');
+  } else {
+    if (err) {
+      err.textContent = 'Incorrect passcode. Please try again.';
+      err.style.display = 'block';
+    }
+    input.select();
+  }
+}
+
+// --- Admin Dashboard Container Controls ---
+
+function openAdminDashboard() {
+  const modal = document.getElementById('adminDashboardModal');
+  if (!modal) return;
+  modal.classList.add('active');
+
+  // Update URL hash smoothly
+  if (window.location.hash !== '#admin') {
+    history.replaceState(null, null, '#admin');
+  }
+
+  // Refresh counts and render Overview by default
+  updateAdminCounts();
+  switchAdminTab('overview');
+}
+
+function closeAdminDashboard() {
+  const modal = document.getElementById('adminDashboardModal');
+  if (modal) modal.classList.remove('active');
+  if (window.location.hash === '#admin') {
+    history.replaceState(null, null, ' ');
+  }
+}
+
+function logoutAdmin() {
+  setAdminAuth(false);
+  closeAdminDashboard();
+  showToast('Logged out of Admin Portal.');
+}
+
+function switchAdminTab(tabName) {
+  const tabs = ['overview', 'appointments', 'barbers', 'gallery', 'reviews', 'settings'];
+  tabs.forEach(t => {
+    const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+    const pane = document.getElementById('adminPane' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn) btn.classList.toggle('active', t === tabName);
+    if (pane) pane.style.display = (t === tabName) ? 'block' : 'none';
+  });
+
+  updateAdminCounts();
+
+  if (tabName === 'overview') renderAdminOverview();
+  else if (tabName === 'appointments') renderAdminAppointments();
+  else if (tabName === 'barbers') renderAdminBarbers();
+  else if (tabName === 'gallery') renderAdminGallery();
+  else if (tabName === 'reviews') renderAdminReviews();
+}
+
+function updateAdminCounts() {
+  const allBookings = getAllAdminBookings();
+  const elAppts = document.getElementById('adminCountAppointments');
+  if (elAppts) elAppts.textContent = allBookings.length;
+
+  const elBarbers = document.getElementById('adminCountBarbers');
+  if (elBarbers) elBarbers.textContent = BARBERS.length;
+
+  const elGallery = document.getElementById('adminCountGallery');
+  if (elGallery) elGallery.textContent = GALLERY_ITEMS.length;
+
+  const reviews = firebaseDb ? firebaseLiveReviews : getLocalStorageReviews();
+  const allReviewsCount = (firebaseDb && firebaseLiveReviews.length > 0) ? firebaseLiveReviews.length : (reviews.length + DEFAULT_REVIEWS.length);
+  const elReviews = document.getElementById('adminCountReviews');
+  if (elReviews) elReviews.textContent = allReviewsCount;
+}
+
+// --- Data Retrieval Helper ---
+
+function getAllAdminBookings() {
+  // Combine Firebase live bookings with local storage bookings, deduplicating by ID
+  const map = new Map();
+
+  // 1. Local bookings
+  const local = getBookings();
+  local.forEach(b => {
+    if (b && b.id) map.set(b.id, b);
+  });
+
+  // 2. Firebase live bookings (primary source of truth across all devices)
+  if (firebaseDb && firebaseLiveBookings.length > 0) {
+    firebaseLiveBookings.forEach(b => {
+      if (b && b.id) map.set(b.id, b);
+    });
+  }
+
+  return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+// --- Pane: Overview ---
+
+function renderAdminOverview() {
+  const bookings = getAllAdminBookings();
+  const totalBookings = bookings.length;
+  const confirmed = bookings.filter(b => (b.status || '').toUpperCase() === 'CONFIRMED').length;
+  const completed = bookings.filter(b => (b.status || '').toUpperCase() === 'COMPLETED').length;
+
+  // Revenue from confirmed and completed bookings
+  const estRevenue = bookings
+    .filter(b => {
+      const st = (b.status || '').toUpperCase();
+      return st === 'CONFIRMED' || st === 'COMPLETED';
+    })
+    .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
+
+  // Reviews calculation
+  const revList = (firebaseDb && firebaseLiveReviews.length > 0) ? firebaseLiveReviews : [...getLocalStorageReviews(), ...DEFAULT_REVIEWS];
+  const avgRating = revList.length > 0 
+    ? (revList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0) / revList.length).toFixed(1)
+    : '5.0';
+
+  // Update KPI displays
+  const elTotalBookings = document.getElementById('kpiTotalBookings');
+  if (elTotalBookings) elTotalBookings.textContent = totalBookings;
+
+  const elConfirmed = document.getElementById('kpiConfirmedBookings');
+  if (elConfirmed) elConfirmed.textContent = `${confirmed} confirmed • ${completed} completed`;
+
+  const elRevenue = document.getElementById('kpiEstRevenue');
+  if (elRevenue) elRevenue.textContent = `$${estRevenue}`;
+
+  const elBarbers = document.getElementById('kpiTotalBarbers');
+  if (elBarbers) elBarbers.textContent = BARBERS.length;
+
+  const elAvgRating = document.getElementById('kpiAvgRating');
+  if (elAvgRating) elAvgRating.textContent = `${avgRating} ★`;
+
+  const elRevCount = document.getElementById('kpiTotalReviews');
+  if (elRevCount) elRevCount.textContent = `${revList.length} customer reviews`;
+
+  // Render recent 5 bookings table
+  const container = document.getElementById('adminRecentBookingsTable');
+  if (!container) return;
+
+  const recent = bookings.slice(0, 5);
+  if (recent.length === 0) {
+    container.innerHTML = `
+      <div style="padding:2.5rem; text-align:center; color:#6B7280;">
+        <i class="fa-solid fa-calendar-xmark" style="font-size:2rem; margin-bottom:0.5rem; color:#9CA3AF;"></i>
+        <p>No customer appointments recorded yet. New bookings will automatically stream here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Pass ID</th>
+          <th>Client</th>
+          <th>Service</th>
+          <th>Barber</th>
+          <th>Date & Time</th>
+          <th>Price</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  recent.forEach(b => {
+    const st = (b.status || 'CONFIRMED').toUpperCase();
+    let badgeClass = 'status-confirmed';
+    if (st === 'COMPLETED') badgeClass = 'status-completed';
+    else if (st === 'CANCELLED') badgeClass = 'status-cancelled';
+
+    html += `
+      <tr>
+        <td style="font-weight:700; font-family:monospace; color:#111827;">${b.id}</td>
+        <td>
+          <div style="font-weight:600; color:#111827;">${b.custName || 'Walk-In Guest'}</div>
+          <div style="font-size:0.75rem; color:#6B7280;">${b.custPhone || 'No Phone'}</div>
+        </td>
+        <td>${b.serviceName}</td>
+        <td>${b.barberName}</td>
+        <td>${b.date} • <strong>${b.time}</strong></td>
+        <td style="font-weight:700;">$${b.price}</td>
+        <td><span class="admin-status-badge ${badgeClass}">${st.toLowerCase()}</span></td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+// --- Pane: Appointments Manager ---
+
+function filterAdminBookings(status) {
+  currentAdminFilter = status;
+  const btns = ['All', 'Confirmed', 'Completed', 'Cancelled'];
+  btns.forEach(name => {
+    const btn = document.getElementById('filterBtn' + name);
+    if (btn) {
+      if (currentAdminFilter.toLowerCase() === name.toLowerCase()) {
+        btn.style.background = '#111827';
+        btn.style.color = '#FFFFFF';
+        btn.style.borderColor = '#111827';
+      } else {
+        btn.style.background = '#FFFFFF';
+        btn.style.color = '#374151';
+        btn.style.borderColor = '#D1D5DB';
+      }
+    }
+  });
+
+  const label = document.getElementById('appointmentsFilterLabel');
+  if (label) {
+    label.textContent = status === 'all' ? '' : `(Filtered: ${status})`;
+  }
+
+  renderAdminAppointments();
+}
+
+function renderAdminAppointments() {
+  const container = document.getElementById('adminFullBookingsTable');
+  if (!container) return;
+
+  let bookings = getAllAdminBookings();
+
+  if (currentAdminFilter !== 'all') {
+    bookings = bookings.filter(b => (b.status || '').toUpperCase() === currentAdminFilter.toUpperCase());
+  }
+
+  if (bookings.length === 0) {
+    container.innerHTML = `
+      <div style="padding:3rem; text-align:center; color:#6B7280;">
+        <i class="fa-solid fa-calendar-xmark" style="font-size:2.2rem; margin-bottom:0.75rem; color:#9CA3AF;"></i>
+        <p style="font-size:0.95rem;">No appointments found matching this filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Booking ID</th>
+          <th>Client Details</th>
+          <th>Service & Beverage</th>
+          <th>Barber</th>
+          <th>Date & Time</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th style="text-align:center;">Manage</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  bookings.forEach(b => {
+    const st = (b.status || 'CONFIRMED').toUpperCase();
+    let badgeClass = 'status-confirmed';
+    if (st === 'COMPLETED') badgeClass = 'status-completed';
+    else if (st === 'CANCELLED') badgeClass = 'status-cancelled';
+
+    html += `
+      <tr>
+        <td style="font-weight:700; font-family:monospace; color:#111827;">${b.id}</td>
+        <td>
+          <div style="font-weight:700; color:#111827;">${b.custName || 'Walk-in'}</div>
+          <div style="font-size:0.75rem; color:#6B7280;"><i class="fa-solid fa-phone" style="font-size:0.65rem;"></i> ${b.custPhone || 'N/A'}</div>
+          ${b.custEmail ? `<div style="font-size:0.72rem; color:#9CA3AF;">${b.custEmail}</div>` : ''}
+        </td>
+        <td>
+          <div style="font-weight:600;">${b.serviceName}</div>
+          <div style="font-size:0.75rem; color:#6B7280;">☕ ${b.beverage || 'Complimentary Water'}</div>
+        </td>
+        <td style="font-weight:600;">${b.barberName}</td>
+        <td>
+          <div>${b.date}</div>
+          <div style="font-weight:700; color:#111827;">${b.time}</div>
+        </td>
+        <td style="font-weight:800; font-size:0.95rem; color:#111827;">$${b.price}</td>
+        <td><span class="admin-status-badge ${badgeClass}">${st.toLowerCase()}</span></td>
+        <td>
+          <div style="display:flex; gap:0.35rem; justify-content:center;">
+            ${st !== 'COMPLETED' ? `
+              <button class="admin-btn-action success" title="Mark Completed" onclick="updateAdminBookingStatus('${b.id}', 'COMPLETED')">
+                <i class="fa-solid fa-check"></i>
+              </button>
+            ` : ''}
+            ${st !== 'CONFIRMED' ? `
+              <button class="admin-btn-action" title="Mark Confirmed" onclick="updateAdminBookingStatus('${b.id}', 'CONFIRMED')">
+                <i class="fa-solid fa-thumbs-up"></i>
+              </button>
+            ` : ''}
+            ${st !== 'CANCELLED' ? `
+              <button class="admin-btn-action danger" title="Mark Cancelled" onclick="updateAdminBookingStatus('${b.id}', 'CANCELLED')">
+                <i class="fa-solid fa-ban"></i>
+              </button>
+            ` : ''}
+            <button class="admin-btn-action danger" title="Delete Permanently" onclick="deleteAdminBooking('${b.id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table>`;
+  container.innerHTML = html;
+}
+
+function updateAdminBookingStatus(id, newStatus) {
+  // 1. Update in local storage
+  const local = getBookings();
+  const found = local.find(b => b.id === id);
+  if (found) {
+    found.status = newStatus;
+    saveBookings(local);
+  }
+
+  // 2. Update in Firebase Realtime Database
+  if (firebaseDb && firebaseBookingsRef) {
+    firebaseBookingsRef.orderByChild('id').equalTo(id).once('value', snapshot => {
+      if (snapshot.exists()) {
+        snapshot.forEach(child => {
+          child.ref.update({ status: newStatus });
+        });
+      }
+    }).catch(err => console.warn('Firebase status update error:', err));
+  }
+
+  // 3. Update in memory live bookings
+  const live = firebaseLiveBookings.find(b => b.id === id);
+  if (live) live.status = newStatus;
+
+  renderAdminAppointments();
+  renderAdminOverview();
+  renderMyBookings();
+  showToast(`Booking ${id} status updated to ${newStatus}.`);
+}
+
+function deleteAdminBooking(id) {
+  if (!confirm(`Are you sure you want to delete appointment ${id} permanently?`)) return;
+
+  // 1. Remove from local storage
+  let local = getBookings();
+  local = local.filter(b => b.id !== id);
+  saveBookings(local);
+
+  // 2. Remove from Firebase Realtime Database
+  if (firebaseDb && firebaseBookingsRef) {
+    firebaseBookingsRef.orderByChild('id').equalTo(id).once('value', snapshot => {
+      if (snapshot.exists()) {
+        snapshot.forEach(child => child.ref.remove());
+      }
+    }).catch(err => console.warn('Firebase booking delete error:', err));
+  }
+
+  // 3. Update memory live bookings
+  firebaseLiveBookings = firebaseLiveBookings.filter(b => b.id !== id);
+
+  renderAdminAppointments();
+  renderAdminOverview();
+  renderMyBookings();
+  showToast(`Appointment ${id} removed.`);
+}
+
+// --- Pane: Barbers Management ---
+
+function renderAdminBarbers() {
+  const container = document.getElementById('adminBarbersGrid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  BARBERS.forEach(b => {
+    const isAny = (b.id === 'b-any');
+    const card = document.createElement('div');
+    card.className = 'admin-entity-card';
+    card.innerHTML = `
+      <img src="${b.avatar}" alt="${b.name.en}" class="admin-card-media">
+      <div class="admin-card-content">
+        <h4>${b.name.en} ${b.name.ar ? `<span style="font-size:0.8rem; font-weight:normal; color:#6B7280;">(${b.name.ar})</span>` : ''}</h4>
+        <div class="entity-role">${b.role.en || b.role}</div>
+        <p>${b.bio.en || b.bio}</p>
+        <div class="admin-card-footer">
+          <span style="font-size:0.75rem; color:#6B7280; font-family:monospace;">ID: ${b.id}</span>
+          ${!isAny ? `
+            <button class="admin-btn-action danger" onclick="deleteAdminBarber('${b.id}')">
+              <i class="fa-solid fa-trash"></i> Remove
+            </button>
+          ` : `
+            <span style="font-size:0.72rem; color:#9CA3AF; font-style:italic;">Default System Slot</span>
+          `}
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function openAddBarberModal() {
+  const modal = document.getElementById('addBarberModal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeAddBarberModal() {
+  const modal = document.getElementById('addBarberModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function submitAddBarber(e) {
+  e.preventDefault();
+  const nameEn = document.getElementById('newBarberNameEn').value.trim();
+  const nameAm = document.getElementById('newBarberNameAm').value.trim() || nameEn;
+  const nameAr = document.getElementById('newBarberNameAr').value.trim() || nameEn;
+  const roleEn = document.getElementById('newBarberRoleEn').value.trim();
+  const bioEn = document.getElementById('newBarberBioEn').value.trim();
+  const avatar = document.getElementById('newBarberAvatar').value.trim();
+
+  const newBarber = {
+    id: 'b-' + Date.now(),
+    name: { en: nameEn, am: nameAm, ar: nameAr },
+    role: { en: roleEn, am: roleEn, ar: roleEn },
+    bio: { en: bioEn, am: bioEn, ar: bioEn },
+    avatar: avatar
+  };
+
+  if (firebaseDb && firebaseBarbersRef) {
+    firebaseBarbersRef.push(newBarber);
+  } else {
+    BARBERS.push(newBarber);
+    renderTeam();
+  }
+
+  closeAddBarberModal();
+  document.getElementById('addBarberForm').reset();
+  renderAdminBarbers();
+  showToast(`💈 Added ${nameEn} to barbers roster!`);
+}
+
+function deleteAdminBarber(id) {
+  if (id === 'b-any') return;
+  const barber = BARBERS.find(b => b.id === id);
+  const name = barber ? barber.name.en : id;
+  if (!confirm(`Are you sure you want to remove ${name} from the salon?`)) return;
+
+  if (firebaseDb && firebaseBarbersRef) {
+    if (barber && barber.firebaseKey) {
+      firebaseBarbersRef.child(barber.firebaseKey).remove();
+    } else {
+      firebaseBarbersRef.orderByChild('id').equalTo(id).once('value', snap => {
+        snap.forEach(child => child.ref.remove());
+      });
+    }
+  }
+
+  BARBERS = BARBERS.filter(b => b.id !== id);
+  renderTeam();
+  renderAdminBarbers();
+  showToast(`Removed ${name} from barbers roster.`);
+}
+
+// --- Pane: Gallery Management ---
+
+function renderAdminGallery() {
+  const container = document.getElementById('adminGalleryGrid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  GALLERY_ITEMS.forEach((g, idx) => {
+    const card = document.createElement('div');
+    card.className = 'admin-entity-card';
+    card.innerHTML = `
+      <img src="${g.img}" alt="${g.title}" class="admin-card-media">
+      <div class="admin-card-content">
+        <h4>${g.title}</h4>
+        <div style="margin-bottom:0.75rem;">
+          <span style="font-size:0.72rem; font-weight:700; background:#E5E7EB; color:#1F2937; padding:0.2rem 0.5rem; border-radius:999px; text-transform:uppercase;">
+            ${g.category}
+          </span>
+        </div>
+        <div class="admin-card-footer">
+          <span style="font-size:0.72rem; color:#9CA3AF;">#${idx + 1}</span>
+          <button class="admin-btn-action danger" onclick="deleteAdminGallery('${g.id || idx}')">
+            <i class="fa-solid fa-trash"></i> Delete Photo
+          </button>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function openAddGalleryModal() {
+  const modal = document.getElementById('addGalleryModal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeAddGalleryModal() {
+  const modal = document.getElementById('addGalleryModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function submitAddGallery(e) {
+  e.preventDefault();
+  const title = document.getElementById('newGalleryTitle').value.trim();
+  const category = document.getElementById('newGalleryCategory').value;
+  const img = document.getElementById('newGalleryImg').value.trim();
+
+  const newPhoto = {
+    id: 'g-' + Date.now(),
+    title: title,
+    category: category,
+    img: img
+  };
+
+  if (firebaseDb && firebaseGalleryRef) {
+    firebaseGalleryRef.push(newPhoto);
+  } else {
+    GALLERY_ITEMS.unshift(newPhoto);
+    renderGallery('all');
+  }
+
+  closeAddGalleryModal();
+  document.getElementById('addGalleryForm').reset();
+  renderAdminGallery();
+  showToast('📸 New portfolio photo added!');
+}
+
+function deleteAdminGallery(idOrIndex) {
+  if (!confirm('Are you sure you want to delete this portfolio photo?')) return;
+
+  const item = GALLERY_ITEMS.find((g, i) => g.id === idOrIndex || String(i) === String(idOrIndex));
+  if (item && item.firebaseKey && firebaseDb && firebaseGalleryRef) {
+    firebaseGalleryRef.child(item.firebaseKey).remove();
+  }
+
+  GALLERY_ITEMS = GALLERY_ITEMS.filter((g, i) => g.id !== idOrIndex && String(i) !== String(idOrIndex));
+  renderGallery('all');
+  renderAdminGallery();
+  showToast('Portfolio photo deleted.');
+}
+
+// --- Pane: Reviews Moderation ---
+
+function renderAdminReviews() {
+  const container = document.getElementById('adminReviewsGrid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const list = (firebaseDb && firebaseLiveReviews.length > 0) ? firebaseLiveReviews : [...getLocalStorageReviews(), ...DEFAULT_REVIEWS];
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div style="padding:3rem; text-align:center; color:#6B7280; grid-column: 1 / -1;">
+        <p>No customer reviews available to moderate.</p>
+      </div>
+    `;
+    return;
+  }
+
+  list.forEach((r, idx) => {
+    const card = document.createElement('div');
+    card.className = 'admin-entity-card';
+    const stars = '★'.repeat(r.rating || 5) + '☆'.repeat(5 - (r.rating || 5));
+    const dateStr = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'Original Customer';
+
+    card.innerHTML = `
+      <div class="admin-card-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+          <div style="color:#F59E0B; font-size:1rem; letter-spacing:0.1em;">${stars}</div>
+          <span style="font-size:0.75rem; color:#9CA3AF;">${dateStr}</span>
+        </div>
+        <h4 style="margin:0 0 0.2rem 0;">${r.name}</h4>
+        <div style="font-size:0.75rem; color:#6B7280; margin-bottom:0.75rem;">
+          <i class="fa-solid fa-scissors" style="font-size:0.65rem;"></i> ${r.service || 'Executive Service'}
+        </div>
+        <p style="font-style:italic; color:#374151;">"${r.text}"</p>
+        <div class="admin-card-footer">
+          <span style="font-size:0.72rem; color:#9CA3AF;">Review #${idx + 1}</span>
+          <button class="admin-btn-action danger" onclick="deleteAdminReview('${r.firebaseKey || r.timestamp || idx}')">
+            <i class="fa-solid fa-trash"></i> Delete Review
+          </button>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function deleteAdminReview(idKey) {
+  if (!confirm('Are you sure you want to remove this review permanently?')) return;
+
+  if (firebaseDb && firebaseReviewsRef) {
+    // If it has a firebase key
+    const match = firebaseLiveReviews.find(r => r.firebaseKey === idKey || String(r.timestamp) === String(idKey));
+    if (match && match.firebaseKey) {
+      firebaseReviewsRef.child(match.firebaseKey).remove();
+    }
+  }
+
+  // Also remove from local storage if present
+  let local = getLocalStorageReviews();
+  local = local.filter(r => String(r.timestamp) !== String(idKey) && r.name !== idKey);
+  saveToLocalStorage(local);
+
+  renderReviews();
+  renderAdminReviews();
+  showToast('Review removed.');
+}
+
+// --- Pane: Settings & Security ---
+
+function submitChangePasscode(e) {
+  e.preventDefault();
+  const current = document.getElementById('currentPasscodeInput').value;
+  const newPass = document.getElementById('newPasscodeInput').value;
+  const confirmPass = document.getElementById('confirmPasscodeInput').value;
+  const msg = document.getElementById('adminSettingsMsg');
+
+  if (current !== getAdminPasscode()) {
+    if (msg) {
+      msg.textContent = 'Current passcode does not match.';
+      msg.style.color = '#DC2626';
+      msg.style.display = 'block';
+    }
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    if (msg) {
+      msg.textContent = 'New passcode and confirmation do not match.';
+      msg.style.color = '#DC2626';
+      msg.style.display = 'block';
+    }
+    return;
+  }
+
+  setAdminPasscode(newPass);
+  if (msg) {
+    msg.textContent = '✓ Admin passcode updated successfully!';
+    msg.style.color = '#059669';
+    msg.style.display = 'block';
+  }
+  document.getElementById('adminChangePassForm').reset();
+  showToast('🔒 Passcode updated successfully.');
+}
+
+function adminResetDefaultData() {
+  if (!confirm('Re-seed initial default barbers, gallery photos, and reviews to Firebase? This will overwrite or supplement existing items.')) return;
+
+  if (firebaseDb) {
+    if (firebaseBarbersRef) {
+      DEFAULT_BARBERS.forEach(b => firebaseBarbersRef.push(b));
+    }
+    if (firebaseGalleryRef) {
+      DEFAULT_GALLERY.forEach(g => firebaseGalleryRef.push(g));
+    }
+    if (firebaseReviewsRef) {
+      DEFAULT_REVIEWS.forEach(r => firebaseReviewsRef.push(r));
+    }
+    showToast('Default data re-seeded to Firebase.');
+  } else {
+    BARBERS = [...DEFAULT_BARBERS];
+    GALLERY_ITEMS = [...DEFAULT_GALLERY];
+    REVIEWS = [...DEFAULT_REVIEWS];
+    renderTeam();
+    renderGallery('all');
+    renderReviews();
+    showToast('Default data reset in local memory.');
+  }
+
+  renderAdminBarbers();
+  renderAdminGallery();
+  renderAdminReviews();
+}
+

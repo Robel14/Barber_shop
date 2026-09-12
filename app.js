@@ -19,6 +19,8 @@ const FIREBASE_CONFIG = {
 
 let firebaseDb = null;
 let firebaseReviewsRef = null;
+let firebaseBarbersRef = null;
+let firebaseGalleryRef = null;
 let firebaseLiveReviews = []; // Updated in real-time
 
 function initFirebase() {
@@ -28,17 +30,66 @@ function initFirebase() {
     }
     firebaseDb = firebase.database();
     firebaseReviewsRef = firebaseDb.ref('reviews');
+    firebaseBarbersRef = firebaseDb.ref('barbers');
+    firebaseGalleryRef = firebaseDb.ref('gallery');
 
-    // Real-time listener: whenever reviews change in Firebase, re-render
+    // 1. Real-time listener: reviews
     firebaseReviewsRef.orderByChild('timestamp').on('value', (snapshot) => {
-      firebaseLiveReviews = [];
-      snapshot.forEach((child) => {
-        firebaseLiveReviews.unshift(child.val()); // newest first
-      });
-      renderReviews();
+      if (snapshot.exists()) {
+        firebaseLiveReviews = [];
+        snapshot.forEach((child) => {
+          const item = child.val();
+          item.id = child.key;
+          firebaseLiveReviews.unshift(item); // newest first
+        });
+        renderReviews();
+      } else {
+        // Seed initial reviews if empty
+        DEFAULT_REVIEWS.forEach(r => firebaseReviewsRef.push(r));
+      }
+    });
+
+    // 2. Real-time listener: barbers
+    firebaseBarbersRef.on('value', (snapshot) => {
+      if (snapshot.exists()) {
+        const list = [];
+        snapshot.forEach((child) => {
+          const b = child.val();
+          b.firebaseKey = child.key;
+          b.id = b.id || child.key;
+          list.push(b);
+        });
+        if (list.length > 0) {
+          BARBERS = list;
+          renderTeam();
+        }
+      } else {
+        // Seed initial barbers if empty
+        DEFAULT_BARBERS.forEach(b => firebaseBarbersRef.push(b));
+      }
+    });
+
+    // 3. Real-time listener: gallery
+    firebaseGalleryRef.on('value', (snapshot) => {
+      if (snapshot.exists()) {
+        const list = [];
+        snapshot.forEach((child) => {
+          const g = child.val();
+          g.firebaseKey = child.key;
+          g.id = g.id || child.key;
+          list.push(g);
+        });
+        if (list.length > 0) {
+          GALLERY_ITEMS = list;
+          renderGallery('all');
+        }
+      } else {
+        // Seed initial gallery if empty
+        DEFAULT_GALLERY.forEach(g => firebaseGalleryRef.push(g));
+      }
     });
   } catch (err) {
-    console.warn('Firebase unavailable, falling back to localStorage:', err);
+    console.warn('Firebase unavailable, falling back to localStorage/defaults:', err);
     firebaseDb = null;
   }
 }
@@ -372,7 +423,7 @@ const SERVICES = [
   }
 ];
 
-const BARBERS = [
+const DEFAULT_BARBERS = [
   {
     id: 'b-any',
     name: { en: 'First Available Barber', am: 'የመጀመሪያው ክፍት ባለሙያ', ar: 'أول حلاق متاح' },
@@ -403,18 +454,22 @@ const BARBERS = [
   }
 ];
 
-const GALLERY_ITEMS = [
-  { category: 'fades', title: 'Precision Skin Fade', img: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=600&q=80' },
-  { category: 'beards', title: 'Beard Sculpt & Razor Edge', img: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=600&q=80' },
-  { category: 'haircuts', title: 'Executive Pompadour', img: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80' },
-  { category: 'styling', title: 'Royal VIP Steam Treatment', img: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=600&q=80' }
+const DEFAULT_GALLERY = [
+  { id: 'g-1', category: 'fades', title: 'Precision Skin Fade', img: 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=600&q=80' },
+  { id: 'g-2', category: 'beards', title: 'Beard Sculpt & Razor Edge', img: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=600&q=80' },
+  { id: 'g-3', category: 'haircuts', title: 'Executive Pompadour', img: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80' },
+  { id: 'g-4', category: 'styling', title: 'Royal VIP Steam Treatment', img: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=600&q=80' }
 ];
 
-const REVIEWS = [
-  { name: 'Lord Marcus Vance', rating: 5, text: 'The Royal VIP Ritual is unmatched. High-end atmosphere, exceptional straight razor shave, and top-tier espresso bar.' },
-  { name: 'Dr. David Chen', rating: 5, text: 'Viktor is a true artist. Best taper fade I have ever had. The online booking and calendar pass makes it so smooth.' },
-  { name: 'Sami Al-Hassan', rating: 5, text: 'خدمة فاخرة جداً وحلاقة احترافية. الجناح الخاص راقي للغاية والتعامل ممتاز.' }
+const DEFAULT_REVIEWS = [
+  { name: 'Lord Marcus Vance', rating: 5, text: 'The Royal VIP Ritual is unmatched. High-end atmosphere, exceptional straight razor shave, and top-tier espresso bar.', service: 'Royal VIP Grooming Ritual', timestamp: Date.now() - 259200000 },
+  { name: 'Dr. David Chen', rating: 5, text: 'Viktor is a true artist. Best taper fade I have ever had. The online booking and calendar pass makes it so smooth.', service: 'Executive Haircut & Beard Sculpt', timestamp: Date.now() - 172800000 },
+  { name: 'Sami Al-Hassan', rating: 5, text: 'خدمة فاخرة جداً وحلاقة احترافية. الجناح الخاص راقي للغاية والتعامل ممتاز.', service: 'Presidential Grooming & Cigar Lounge', timestamp: Date.now() - 86400000 }
 ];
+
+let BARBERS = [...DEFAULT_BARBERS];
+let GALLERY_ITEMS = [...DEFAULT_GALLERY];
+let REVIEWS = [...DEFAULT_REVIEWS];
 
 const DEFAULT_SLOTS = [
   '09:00 AM', '10:15 AM', '11:30 AM', '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM', '07:00 PM'
@@ -580,9 +635,13 @@ function renderReviews(highlightFirst = false) {
   if (!container) return;
   container.innerHTML = '';
 
-  // Combine live Firebase reviews (or localStorage fallback) with hardcoded defaults
-  const userReviews = firebaseDb ? firebaseLiveReviews : getLocalStorageReviews();
-  const allReviews = [...userReviews, ...REVIEWS];
+  // Use live Firebase reviews if connected and populated, otherwise fallback to local/defaults
+  let allReviews;
+  if (firebaseDb) {
+    allReviews = firebaseLiveReviews.length > 0 ? firebaseLiveReviews : REVIEWS;
+  } else {
+    allReviews = [...getLocalStorageReviews(), ...REVIEWS];
+  }
 
   if (allReviews.length === 0) {
     container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">No reviews yet. Be the first to share your experience!</p>';

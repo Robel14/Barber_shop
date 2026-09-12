@@ -57,7 +57,28 @@ const TRANSLATIONS = {
     socialHeading: "Follow Us",
     wizardHeader: "Appointment Reservation",
     btnBookThis: "Book This Service",
-    btnBookWithBarber: "Book with Barber"
+    btnBookWithBarber: "Book with Barber",
+    btnAddReview: "+ Add Review",
+    reviewModalTitle: "Share Your Experience",
+    reviewRatingLabel: "Your Rating",
+    reviewNameLabel: "Full Name *",
+    reviewServiceLabel: "Service Experienced",
+    reviewTextLabel: "Review Comments *",
+    btnSubmitReview: "Submit Review",
+    btnCancel: "Cancel",
+    mapHeading: "Interactive Map & Route Directions",
+    mapSubheading: "Select starting point or use live GPS to calculate optimal travel route",
+    btnGps: "Use My Location",
+    labelStartingPoint: "Starting Point",
+    labelMode: "Travel Mode",
+    btnCalculateRoute: "Find Best Route",
+    routeSummaryTitle: "Route Summary",
+    turnByTurnHeader: "Turn-by-Turn Directions:",
+    btnOpenNavApp: "Open in Navigation App",
+    optDowntown: "🏙️ Downtown Financial Hub (2.4 mi)",
+    optUptown: "🏢 Uptown Executive Plaza (4.1 mi)",
+    optAirport: "✈️ Metro International Airport (12.5 mi)",
+    optCentral: "🚉 Central Transit Station (1.8 mi)"
   },
   am: {
     infoHours: "ሰኞ - ቅዳሜ: 3:00 ጠዋት - 3:00 ማታ | እሑድ: 4:00 ጠዋት - 12:00 ማታ",
@@ -110,7 +131,28 @@ const TRANSLATIONS = {
     socialHeading: "በማህበራዊ ሚዲያ ይከተሉን",
     wizardHeader: "ቀጠሮ መያዣ",
     btnBookThis: "ይህንን ይዘዙ",
-    btnBookWithBarber: "ከባለሙያው ጋር ይዘዙ"
+    btnBookWithBarber: "ከባለሙያው ጋር ይዘዙ",
+    btnAddReview: "+ አስተያየት ይጻፉ",
+    reviewModalTitle: "አስተያየትዎን ያጋሩ",
+    reviewRatingLabel: "የሰጡት ደረጃ",
+    reviewNameLabel: "ሙሉ ስም *",
+    reviewServiceLabel: "ያገኙት አገልግሎት",
+    reviewTextLabel: "አስተያየትዎ *",
+    btnSubmitReview: "አስተያየት ያስገቡ",
+    btnCancel: "ሰርዝ",
+    mapHeading: "የካርታ እና የመንገድ መመሪያዎች",
+    mapSubheading: "የመነሻ ቦታ ይምረጡ ወይም ምርጥ መንገድ ለማግኘት ጂፒኤስ ይጠቀሙ",
+    btnGps: "ያለሁበትን ቦታ ተጠቀም",
+    labelStartingPoint: "የመነሻ ቦታ",
+    labelMode: "የጉዞ መንገድ",
+    btnCalculateRoute: "ምርጥ መንገድ ፈልግ",
+    routeSummaryTitle: "የመንገዱ ማጠቃለያ",
+    turnByTurnHeader: "ደረጃ በደረጃ የመንገድ መመሪያ:",
+    btnOpenNavApp: "በካርታ መተግበሪያ ክፈት",
+    optDowntown: "🏙️ ዳውንታውን (3.8 ኪ.ሜ)",
+    optUptown: "🏢 አፕታውን ፕላዛ (6.6 ኪ.ሜ)",
+    optAirport: "✈️ ኤርፖርት (20.1 ኪ.ሜ)",
+    optCentral: "🚉 ሴንትራል ባቡር ጣቢያ (2.9 ኪ.ሜ)"
   },
   ar: {
     infoHours: "الإثنين - السبت: 9:00 صباحاً - 9:00 مساءً | الأحد: 10:00 صباحاً - 6:00 مساءً",
@@ -163,7 +205,28 @@ const TRANSLATIONS = {
     socialHeading: "تابعنا على وسائل التواصل",
     wizardHeader: "حجز موعد جديد",
     btnBookThis: "احجز هذه الخدمة",
-    btnBookWithBarber: "احجز مع الحلاق"
+    btnBookWithBarber: "احجز مع الحلاق",
+    btnAddReview: "+ إضافة تقييم",
+    reviewModalTitle: "شاركونا رأيكم",
+    reviewRatingLabel: "تقييمك",
+    reviewNameLabel: "الاسم الكامل *",
+    reviewServiceLabel: "الخدمة التي حصلت عليها",
+    reviewTextLabel: "تعليقك *",
+    btnSubmitReview: "إرسال التقييم",
+    btnCancel: "إلغاء",
+    mapHeading: "الخريطة والتوجيهات التفاعلية",
+    mapSubheading: "اختر نقطة الانطلاق أو استخدم GPS لحساب أفضل مسار",
+    btnGps: "استخدم موقعي الحالي",
+    labelStartingPoint: "نقطة الانطلاق",
+    labelMode: "وسيلة التنقل",
+    btnCalculateRoute: "احسب أفضل مسار",
+    routeSummaryTitle: "ملخص المسار",
+    turnByTurnHeader: "التوجيهات خطوة بخطوة:",
+    btnOpenNavApp: "فتح في تطبيق الخرائط",
+    optDowntown: "🏙️ وسط المدينة التجاري (3.8 كم)",
+    optUptown: "🏢 مركز أبتون التنفيذي (6.6 كم)",
+    optAirport: "✈️ مطار مترو الدولي (20.1 كم)",
+    optCentral: "🚉 محطة النقل المركزية (2.9 كم)"
   }
 };
 
@@ -337,6 +400,19 @@ document.addEventListener('DOMContentLoaded', () => {
   renderReviews();
   renderMyBookings();
   updateI18nTexts();
+  // Lazy-init the map when the contact section comes into view
+  const mapEl = document.getElementById('map');
+  if (mapEl) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          initMap();
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    observer.observe(mapEl);
+  }
 });
 
 // --- LANGUAGE SWITCHER ---
@@ -459,21 +535,340 @@ function closeLightbox() {
   if (modal) modal.classList.remove('active');
 }
 
-function renderReviews() {
+function renderReviews(highlightFirst = false) {
   const container = document.getElementById('reviewsGrid');
   if (!container) return;
   container.innerHTML = '';
 
-  REVIEWS.forEach(r => {
+  const allReviews = getStoredReviews();
+
+  allReviews.forEach((r, idx) => {
     const card = document.createElement('div');
     card.className = 'review-card';
+    const isNew = highlightFirst && idx === 0;
     card.innerHTML = `
       <div class="review-stars">${'<i class="fa-solid fa-star"></i>'.repeat(r.rating)}</div>
       <p class="review-text">"${r.text}"</p>
-      <div class="review-author">${r.name}</div>
+      <div class="review-author">${r.name}${isNew ? '<span class="badge-new-review">NEW</span>' : ''}</div>
+      ${r.service ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem;"><i class="fa-solid fa-scissors" style="margin-right:0.3rem;"></i>${r.service}</div>` : ''}
     `;
+    if (isNew) {
+      card.style.animation = 'fadeSlideIn 0.5s ease';
+      card.style.border = '2px solid #000';
+    }
     container.appendChild(card);
   });
+}
+
+function getStoredReviews() {
+  const key = 'aura_blade_reviews_v1';
+  const stored = localStorage.getItem(key);
+  const userReviews = stored ? JSON.parse(stored) : [];
+  return [...userReviews, ...REVIEWS];
+}
+
+function saveStoredReviews(reviews) {
+  localStorage.setItem('aura_blade_reviews_v1', JSON.stringify(reviews));
+}
+
+// --- REVIEW MODAL ---
+let currentReviewRating = 5;
+
+function openReviewModal() {
+  currentReviewRating = 5;
+  document.getElementById('reviewModal').classList.add('active');
+  updateStarPicker(5);
+}
+
+function closeReviewModal() {
+  document.getElementById('reviewModal').classList.remove('active');
+  const form = document.querySelector('#reviewModal form');
+  if (form) form.reset();
+  updateStarPicker(5);
+  currentReviewRating = 5;
+}
+
+function setReviewRating(rating) {
+  currentReviewRating = rating;
+  updateStarPicker(rating);
+}
+
+function updateStarPicker(rating) {
+  const stars = document.querySelectorAll('#starPicker i');
+  stars.forEach((star, i) => {
+    star.classList.toggle('active', i < rating);
+  });
+}
+
+function submitReview(e) {
+  e.preventDefault();
+  const name = document.getElementById('reviewName').value.trim();
+  const service = document.getElementById('reviewService').value;
+  const text = document.getElementById('reviewText').value.trim();
+
+  if (!name || !text) return;
+
+  const newReview = { name, rating: currentReviewRating, text, service, timestamp: Date.now() };
+
+  // Load existing user reviews, prepend new one, save
+  const stored = localStorage.getItem('aura_blade_reviews_v1');
+  const userReviews = stored ? JSON.parse(stored) : [];
+  userReviews.unshift(newReview);
+  saveStoredReviews(userReviews);
+
+  closeReviewModal();
+  renderReviews(true);
+
+  // Scroll smoothly to the reviews section
+  setTimeout(() => {
+    const reviewsSection = document.getElementById('reviews');
+    if (reviewsSection) reviewsSection.scrollIntoView({ behavior: 'smooth' });
+  }, 100);
+
+  showToast('⭐ Your review has been added! Thank you.');
+}
+
+// --- INTERACTIVE MAP & ROUTE SYSTEM ---
+let leafletMap = null;
+let routePolyline = null;
+let userMarker = null;
+let currentTravelMode = 'driving';
+let userGpsCoords = null;
+
+// Salon coordinates (100 Grand Ave, New York)
+const SALON_LAT = 40.7580;
+const SALON_LNG = -73.9855;
+
+// Preset origin coordinates
+const ORIGINS = {
+  downtown:  { lat: 40.7127, lng: -74.0059, label: 'Downtown Financial Hub' },
+  uptown:    { lat: 40.7831, lng: -73.9712, label: 'Uptown Executive Plaza' },
+  airport:   { lat: 40.6413, lng: -73.7781, label: 'Metro International Airport' },
+  central:   { lat: 40.7506, lng: -73.9971, label: 'Central Transit Station' }
+};
+
+// Travel mode info multipliers for ETA estimation
+const MODE_CONFIG = {
+  driving:  { speed: 28, icon: 'fa-car',           color: '#000000', label: 'Driving',  unit: 'mph' },
+  transit:  { speed: 20, icon: 'fa-bus',           color: '#1E40AF', label: 'Transit',  unit: 'mph' },
+  biking:   { speed: 12, icon: 'fa-bicycle',       color: '#065F46', label: 'Biking',   unit: 'mph' },
+  walking:  { speed: 3,  icon: 'fa-person-walking', color: '#7C3AED', label: 'Walking',  unit: 'mph' }
+};
+
+// Preset turn-by-turn directions per origin
+const DIRECTIONS_DB = {
+  downtown: [
+    { icon: 'fa-location-arrow', text: 'Head north on Broadway' },
+    { icon: 'fa-turn-right', text: 'Turn right onto W 42nd St' },
+    { icon: 'fa-turn-left', text: 'Turn left on 6th Ave' },
+    { icon: 'fa-turn-right', text: 'Turn right onto W 47th St' },
+    { icon: 'fa-turn-right', text: 'Turn right onto Grand Ave' },
+    { icon: 'fa-flag-checkered', text: 'Arrive at AURA & BLADE — Executive Plaza, Suite 400' }
+  ],
+  uptown: [
+    { icon: 'fa-location-arrow', text: 'Head south on Amsterdam Ave' },
+    { icon: 'fa-turn-right', text: 'Turn right onto W 72nd St' },
+    { icon: 'fa-turn-left', text: 'Turn left onto Central Park West' },
+    { icon: 'fa-turn-right', text: 'Turn right onto W 57th St' },
+    { icon: 'fa-turn-right', text: 'Turn right onto Grand Ave' },
+    { icon: 'fa-flag-checkered', text: 'Arrive at AURA & BLADE — Executive Plaza, Suite 400' }
+  ],
+  airport: [
+    { icon: 'fa-location-arrow', text: 'Exit airport via Federal Circle' },
+    { icon: 'fa-road', text: 'Merge onto Van Wyck Expy N (I-678)' },
+    { icon: 'fa-road', text: 'Continue onto Queens-Midtown Tunnel' },
+    { icon: 'fa-turn-right', text: 'Turn right onto E 42nd St' },
+    { icon: 'fa-turn-right', text: 'Turn right onto Grand Ave' },
+    { icon: 'fa-flag-checkered', text: 'Arrive at AURA & BLADE — Executive Plaza, Suite 400' }
+  ],
+  central: [
+    { icon: 'fa-location-arrow', text: 'Exit Central Station via Lexington Ave' },
+    { icon: 'fa-turn-right', text: 'Turn right onto E 42nd St' },
+    { icon: 'fa-turn-left', text: 'Turn left onto 5th Ave' },
+    { icon: 'fa-turn-right', text: 'Turn right onto W 47th St' },
+    { icon: 'fa-turn-right', text: 'Turn right onto Grand Ave' },
+    { icon: 'fa-flag-checkered', text: 'Arrive at AURA & BLADE — Executive Plaza, Suite 400' }
+  ],
+  gps: [
+    { icon: 'fa-location-crosshairs', text: 'Starting from your current GPS location' },
+    { icon: 'fa-road', text: 'Head toward the nearest main road' },
+    { icon: 'fa-turn-right', text: 'Follow route to Grand Ave' },
+    { icon: 'fa-flag-checkered', text: 'Arrive at AURA & BLADE — Executive Plaza, Suite 400' }
+  ]
+};
+
+function initMap() {
+  if (leafletMap) return; // Already initialized
+
+  leafletMap = L.map('map', { zoomControl: true, scrollWheelZoom: false }).setView([SALON_LAT, SALON_LNG], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(leafletMap);
+
+  // Custom salon pin
+  const salonIcon = L.divIcon({
+    html: `<div style="background:#000;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);border:2px solid #fff;">✂️</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+    className: ''
+  });
+
+  L.marker([SALON_LAT, SALON_LNG], { icon: salonIcon })
+    .addTo(leafletMap)
+    .bindPopup(`
+      <div style="font-family:'Outfit',sans-serif;min-width:160px;padding:4px 0;">
+        <div style="font-weight:800;font-size:1rem;margin-bottom:4px;">✂️ AURA & BLADE</div>
+        <div style="font-size:0.8rem;opacity:0.85;">100 Grand Avenue, Suite 400</div>
+        <div style="font-size:0.75rem;opacity:0.7;margin-top:4px;">⭐⭐⭐⭐⭐ 5.0 Google Rating</div>
+      </div>
+    `, { maxWidth: 200 })
+    .openPopup();
+
+  // Draw initial route for downtown
+  calculateBestRoute();
+}
+
+function setTravelMode(mode) {
+  currentTravelMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+  });
+  calculateBestRoute();
+}
+
+function calculateBestRoute() {
+  if (!leafletMap) {
+    initMap();
+    return;
+  }
+
+  const originKey = document.getElementById('routeOrigin')?.value || 'downtown';
+  let originCoords = ORIGINS[originKey];
+
+  // If GPS selected but no coords yet
+  if (originKey === 'gps') {
+    if (!userGpsCoords) {
+      useCurrentLocation();
+      return;
+    }
+    originCoords = userGpsCoords;
+  }
+
+  // Remove old route polyline
+  if (routePolyline) {
+    leafletMap.removeLayer(routePolyline);
+  }
+
+  // Remove old user marker
+  if (userMarker) {
+    leafletMap.removeLayer(userMarker);
+  }
+
+  const modeConf = MODE_CONFIG[currentTravelMode];
+
+  // Build waypoints — straight line with slight arc for visual effect
+  const midLat = (originCoords.lat + SALON_LAT) / 2 + 0.008;
+  const midLng = (originCoords.lng + SALON_LNG) / 2 + 0.004;
+  const latlngs = [
+    [originCoords.lat, originCoords.lng],
+    [midLat, midLng],
+    [SALON_LAT, SALON_LNG]
+  ];
+
+  routePolyline = L.polyline(latlngs, {
+    color: modeConf.color,
+    weight: 5,
+    opacity: 0.85,
+    dashArray: currentTravelMode === 'walking' ? '8, 10' : currentTravelMode === 'biking' ? '4, 6' : null,
+    lineJoin: 'round'
+  }).addTo(leafletMap);
+
+  // Origin pin
+  const originIcon = L.divIcon({
+    html: `<div style="background:${modeConf.color};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;box-shadow:0 3px 8px rgba(0,0,0,0.3);border:2px solid #fff;"><i class='fa-solid ${modeConf.icon}'></i></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    className: ''
+  });
+
+  userMarker = L.marker([originCoords.lat, originCoords.lng], { icon: originIcon })
+    .addTo(leafletMap)
+    .bindPopup(`<div style="font-family:'Outfit',sans-serif;font-weight:600;font-size:0.85rem;">${originCoords.label || 'Your Location'}</div>`);
+
+  // Fit map to show both points
+  leafletMap.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+
+  // Calculate distance (Haversine)
+  const distKm = haversineKm(originCoords.lat, originCoords.lng, SALON_LAT, SALON_LNG);
+  const distMi = (distKm * 0.621371).toFixed(1);
+  const distKmRound = distKm.toFixed(1);
+  const etaMinutes = Math.round((distKm / modeConf.speed) * 60);
+
+  // Update route info panel
+  const timeBadge = document.getElementById('routeTimeBadge');
+  const distBadge = document.getElementById('routeDistanceBadge');
+  if (timeBadge) timeBadge.textContent = etaMinutes < 60 ? `${etaMinutes} mins` : `${Math.floor(etaMinutes/60)}h ${etaMinutes%60}m`;
+  if (distBadge) {
+    const trafficLabel = currentTravelMode === 'driving' ? (distKm < 5 ? '• Low Traffic 🟢' : distKm < 15 ? '• Moderate Traffic 🟡' : '• Heavy Traffic 🔴') : '';
+    distBadge.textContent = `${distMi} mi (${distKmRound} km) via Grand Ave ${trafficLabel}`;
+  }
+
+  // Update turn list
+  const turnList = document.getElementById('turnList');
+  if (turnList) {
+    const steps = DIRECTIONS_DB[originKey] || DIRECTIONS_DB.downtown;
+    turnList.innerHTML = steps.map(step => `
+      <li class="turn-item">
+        <i class="fa-solid ${step.icon}" style="min-width:14px;"></i>
+        <span>${step.text}</span>
+      </li>
+    `).join('');
+  }
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    showToast('❌ Geolocation not supported by this browser.');
+    return;
+  }
+
+  showToast('📍 Locating your position...');
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords;
+      userGpsCoords = { lat: latitude, lng: longitude, label: 'My Current Location' };
+
+      // Update the dropdown to select GPS option
+      const select = document.getElementById('routeOrigin');
+      if (select) select.value = 'gps';
+
+      if (!leafletMap) initMap();
+      calculateBestRoute();
+      showToast('✅ Location found! Route calculated.');
+    },
+    () => {
+      showToast('❌ Could not access location. Please allow location access.');
+    }
+  );
+}
+
+function openExternalMaps() {
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${SALON_LAT},${SALON_LNG}&travelmode=${currentTravelMode === 'biking' ? 'bicycling' : currentTravelMode === 'transit' ? 'transit' : currentTravelMode === 'walking' ? 'walking' : 'driving'}`;
+  window.open(mapsUrl, '_blank');
 }
 
 // --- DIRECT BOOKING WIZARD HANDLERS ---

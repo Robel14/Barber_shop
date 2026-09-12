@@ -9,6 +9,10 @@
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
   <!-- Stylesheet -->
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -176,11 +180,16 @@
 
     <!-- Customer Reviews & Social Proof -->
     <section id="reviews" style="margin-bottom: 4rem;">
-      <div class="section-header">
-        <h2 class="section-title">
-          <i class="fa-solid fa-star"></i> <span data-i18n="reviewsTitle">Customer Reviews & Badges</span>
-        </h2>
-        <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="reviewsSubtitle">Rated 5.0 Stars on Google & Verified Clients</span>
+      <div class="section-header" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <h2 class="section-title">
+            <i class="fa-solid fa-star"></i> <span data-i18n="reviewsTitle">Customer Reviews & Badges</span>
+          </h2>
+          <span style="font-size:0.85rem; color:var(--text-muted);" data-i18n="reviewsSubtitle">Rated 5.0 Stars on Google & Verified Clients</span>
+        </div>
+        <button class="btn-primary" onclick="openReviewModal()">
+          <i class="fa-solid fa-pen-to-square"></i> <span data-i18n="btnAddReview">+ Add Review</span>
+        </button>
       </div>
 
       <div id="reviewsGrid" class="reviews-grid">
@@ -204,13 +213,13 @@
 
     <!-- Location & Contact Details Section -->
     <section id="contact" style="margin-bottom: 4rem; background:#FFFFFF; border:1px solid var(--border-black); border-radius:var(--radius-lg); padding:3rem; box-shadow:var(--shadow-card);">
-      <div class="section-header" style="border:none; margin-bottom:1rem;">
+      <div class="section-header" style="border:none; margin-bottom:1.5rem;">
         <h2 class="section-title">
           <i class="fa-solid fa-location-dot"></i> <span data-i18n="contactTitle">Location & Operating Hours</span>
         </h2>
       </div>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:2.5rem;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:2.5rem; margin-bottom:2.5rem;">
         <div>
           <h3 style="color:#000; margin-bottom:1rem;" data-i18n="hoursHeading">Operating Hours</h3>
           <p style="color:var(--text-secondary); margin-bottom:0.5rem;"><strong data-i18n="weekdays">Monday - Saturday:</strong> 9:00 AM - 9:00 PM</p>
@@ -235,8 +244,130 @@
           </div>
         </div>
       </div>
+
+      <!-- Interactive Map & Directions Section -->
+      <div style="border-top:1px solid var(--border-black); padding-top:2rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+          <div>
+            <h3 style="color:#000; font-size:1.3rem; display:flex; align-items:center; gap:0.5rem;">
+              <i class="fa-solid fa-route"></i> <span data-i18n="mapHeading">Interactive Map & Route Directions</span>
+            </h3>
+            <p style="font-size:0.85rem; color:var(--text-muted);" data-i18n="mapSubheading">Select starting point or use live GPS to calculate optimal travel route</p>
+          </div>
+          <button class="btn-secondary btn-sm" onclick="useCurrentLocation()">
+            <i class="fa-solid fa-location-crosshairs"></i> <span data-i18n="btnGps">Use My Location</span>
+          </button>
+        </div>
+
+        <!-- Route Controls Bar -->
+        <div style="background:var(--bg-secondary); border:1px solid var(--border-black); border-radius:var(--radius-md); padding:1.25rem; margin-bottom:1.5rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; align-items:end;">
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:bold; margin-bottom:0.3rem; color:#000;" data-i18n="labelStartingPoint">Starting Point</label>
+            <select id="routeOrigin" onchange="calculateBestRoute()" style="width:100%; background:#FFF; color:#000; border:1px solid var(--border-black); padding:0.65rem; border-radius:var(--radius-sm); font-size:0.85rem; font-weight:600;">
+              <option value="downtown" selected data-i18n="optDowntown">🏙️ Downtown Financial Hub (2.4 mi)</option>
+              <option value="uptown" data-i18n="optUptown">🏢 Uptown Executive Plaza (4.1 mi)</option>
+              <option value="airport" data-i18n="optAirport">✈️ Metro International Airport (12.5 mi)</option>
+              <option value="central" data-i18n="optCentral">🚉 Central Transit Station (1.8 mi)</option>
+              <option value="gps" id="optGpsOption">📍 My Current Location (GPS)</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:0.8rem; font-weight:bold; margin-bottom:0.3rem; color:#000;" data-i18n="labelMode">Travel Mode</label>
+            <div class="travel-mode-tabs">
+              <button type="button" class="mode-btn active" data-mode="driving" onclick="setTravelMode('driving')" title="Driving"><i class="fa-solid fa-car"></i></button>
+              <button type="button" class="mode-btn" data-mode="transit" onclick="setTravelMode('transit')" title="Public Transit"><i class="fa-solid fa-bus"></i></button>
+              <button type="button" class="mode-btn" data-mode="biking" onclick="setTravelMode('biking')" title="Bicycle"><i class="fa-solid fa-bicycle"></i></button>
+              <button type="button" class="mode-btn" data-mode="walking" onclick="setTravelMode('walking')" title="Walking"><i class="fa-solid fa-person-walking"></i></button>
+            </div>
+          </div>
+
+          <div>
+            <button class="btn-primary" style="width:100%; justify-content:center;" onclick="calculateBestRoute()">
+              <i class="fa-solid fa-diamond-turn-right"></i> <span data-i18n="btnCalculateRoute">Find Best Route</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Map & Route Details Split Layout -->
+        <div class="map-layout-grid">
+          <div style="position:relative;">
+            <div id="map"></div>
+          </div>
+
+          <div style="background:var(--bg-secondary); border:1px solid var(--border-black); border-radius:var(--radius-md); padding:1.25rem; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="font-size:0.75rem; font-weight:bold; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); margin-bottom:0.5rem;" data-i18n="routeSummaryTitle">Route Summary</div>
+              <div id="routeTimeBadge" style="font-size:1.8rem; font-weight:900; color:#000; line-height:1.2;">11 mins</div>
+              <div id="routeDistanceBadge" style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem; font-weight:600;">2.4 mi (3.8 km) via Grand Ave • Low Traffic</div>
+
+              <div style="border-top:1px solid var(--border-subtle); padding-top:0.75rem; margin-bottom:1rem;">
+                <div style="font-size:0.8rem; font-weight:bold; color:#000; margin-bottom:0.5rem;" data-i18n="turnByTurnHeader">Turn-by-Turn Directions:</div>
+                <ul id="turnList" class="turn-list">
+                  <!-- Injected dynamically -->
+                </ul>
+              </div>
+            </div>
+
+            <button class="btn-secondary btn-sm" style="width:100%; justify-content:center;" onclick="openExternalMaps()">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> <span data-i18n="btnOpenNavApp">Open in Navigation App</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
+  </div>
+
+  <!-- ADD REVIEW MODAL -->
+  <div id="reviewModal" class="modal-backdrop">
+    <div class="modal-content" style="max-width: 500px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; padding-bottom:0.75rem; border-bottom:1px solid var(--border-black);">
+        <h2 style="font-size:1.3rem; color:#000; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-star" style="color:#000;"></i> <span data-i18n="reviewModalTitle">Share Your Experience</span>
+        </h2>
+        <button onclick="closeReviewModal()" style="font-size:1.5rem; color:var(--text-muted); cursor:pointer; background:none; border:none;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form onsubmit="submitReview(event)">
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:0.4rem; color:#000;" data-i18n="reviewRatingLabel">Your Rating</label>
+          <div id="starPicker" class="star-picker">
+            <i class="fa-solid fa-star active" data-rating="1" onclick="setReviewRating(1)"></i>
+            <i class="fa-solid fa-star active" data-rating="2" onclick="setReviewRating(2)"></i>
+            <i class="fa-solid fa-star active" data-rating="3" onclick="setReviewRating(3)"></i>
+            <i class="fa-solid fa-star active" data-rating="4" onclick="setReviewRating(4)"></i>
+            <i class="fa-solid fa-star active" data-rating="5" onclick="setReviewRating(5)"></i>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:0.3rem; color:#000;" data-i18n="reviewNameLabel">Full Name *</label>
+          <input type="text" id="reviewName" required placeholder="e.g. Alexander Hayes" style="width:100%; background:#FFF; color:#000; border:1px solid var(--border-black); padding:0.75rem; border-radius:var(--radius-sm); font-size:0.9rem;">
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:0.3rem; color:#000;" data-i18n="reviewServiceLabel">Service Experienced</label>
+          <select id="reviewService" style="width:100%; background:#FFF; color:#000; border:1px solid var(--border-black); padding:0.75rem; border-radius:var(--radius-sm); font-size:0.9rem;">
+            <option value="Executive Haircut & Beard Sculpt">Executive Haircut & Beard Sculpt</option>
+            <option value="Royal VIP Grooming Ritual">Royal VIP Grooming Ritual</option>
+            <option value="Classic Hot Towel Razor Shave">Classic Hot Towel Razor Shave</option>
+            <option value="Outdoor Concierge Barber Service">Outdoor Concierge Barber Service</option>
+            <option value="Presidential Grooming Lounge">Presidential Grooming Lounge</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:1.5rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:0.3rem; color:#000;" data-i18n="reviewTextLabel">Review Comments *</label>
+          <textarea id="reviewText" required rows="4" placeholder="Tell us about your experience..." style="width:100%; background:#FFF; color:#000; border:1px solid var(--border-black); padding:0.75rem; border-radius:var(--radius-sm); font-size:0.9rem; font-family:inherit; resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+          <button type="button" class="btn-secondary" onclick="closeReviewModal()" data-i18n="btnCancel">Cancel</button>
+          <button type="submit" class="btn-primary" data-i18n="btnSubmitReview">Submit Review</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Footer -->

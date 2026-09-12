@@ -2,7 +2,46 @@
    AURA & BLADE - Men's Executive Barber & Hair Salon
    Multilingual System (EN, AM, AR with RTL)
    White Theme & Multi-Step Booking Logic
+   Reviews: Firebase Realtime Database (shared across all users)
    ========================================================================== */
+
+// --- FIREBASE CONFIGURATION ---
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyANnZj5RVnCUJkUhvuS-Id8ImLuNr6bkNo",
+  authDomain: "barbershop-90e82.firebaseapp.com",
+  databaseURL: "https://barbershop-90e82-default-rtdb.firebaseio.com",
+  projectId: "barbershop-90e82",
+  storageBucket: "barbershop-90e82.firebasestorage.app",
+  messagingSenderId: "843207575639",
+  appId: "1:843207575639:web:15a66fa8c656bcc1387b12",
+  measurementId: "G-TXSH5LGGXG"
+};
+
+let firebaseDb = null;
+let firebaseReviewsRef = null;
+let firebaseLiveReviews = []; // Updated in real-time
+
+function initFirebase() {
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
+    firebaseDb = firebase.database();
+    firebaseReviewsRef = firebaseDb.ref('reviews');
+
+    // Real-time listener: whenever reviews change in Firebase, re-render
+    firebaseReviewsRef.orderByChild('timestamp').on('value', (snapshot) => {
+      firebaseLiveReviews = [];
+      snapshot.forEach((child) => {
+        firebaseLiveReviews.unshift(child.val()); // newest first
+      });
+      renderReviews();
+    });
+  } catch (err) {
+    console.warn('Firebase unavailable, falling back to localStorage:', err);
+    firebaseDb = null;
+  }
+}
 
 // --- TRANSLATION DICTIONARIES ---
 const TRANSLATIONS = {
@@ -394,10 +433,11 @@ const STORAGE_BOOKINGS_KEY = 'aura_blade_bookings_v4';
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
+  initFirebase();   // <-- connect to Firebase & start live listener
   renderServices();
   renderTeam();
   renderGallery('all');
-  renderReviews();
+  renderReviews();  // initial render (shows default reviews while Firebase loads)
   renderMyBookings();
   updateI18nTexts();
   // Lazy-init the map when the contact section comes into view
@@ -540,7 +580,14 @@ function renderReviews(highlightFirst = false) {
   if (!container) return;
   container.innerHTML = '';
 
-  const allReviews = getStoredReviews();
+  // Combine live Firebase reviews (or localStorage fallback) with hardcoded defaults
+  const userReviews = firebaseDb ? firebaseLiveReviews : getLocalStorageReviews();
+  const allReviews = [...userReviews, ...REVIEWS];
+
+  if (allReviews.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">No reviews yet. Be the first to share your experience!</p>';
+    return;
+  }
 
   allReviews.forEach((r, idx) => {
     const card = document.createElement('div');
@@ -560,14 +607,15 @@ function renderReviews(highlightFirst = false) {
   });
 }
 
-function getStoredReviews() {
+// --- REVIEW STORAGE (Firebase primary, localStorage fallback) ---
+
+function getLocalStorageReviews() {
   const key = 'aura_blade_reviews_v1';
   const stored = localStorage.getItem(key);
-  const userReviews = stored ? JSON.parse(stored) : [];
-  return [...userReviews, ...REVIEWS];
+  return stored ? JSON.parse(stored) : [];
 }
 
-function saveStoredReviews(reviews) {
+function saveToLocalStorage(reviews) {
   localStorage.setItem('aura_blade_reviews_v1', JSON.stringify(reviews));
 }
 
@@ -600,7 +648,7 @@ function updateStarPicker(rating) {
   });
 }
 
-function submitReview(e) {
+async function submitReview(e) {
   e.preventDefault();
   const name = document.getElementById('reviewName').value.trim();
   const service = document.getElementById('reviewService').value;
@@ -610,14 +658,26 @@ function submitReview(e) {
 
   const newReview = { name, rating: currentReviewRating, text, service, timestamp: Date.now() };
 
-  // Load existing user reviews, prepend new one, save
-  const stored = localStorage.getItem('aura_blade_reviews_v1');
-  const userReviews = stored ? JSON.parse(stored) : [];
-  userReviews.unshift(newReview);
-  saveStoredReviews(userReviews);
+  if (firebaseDb && firebaseReviewsRef) {
+    // Push to Firebase — the real-time listener will update ALL users automatically
+    try {
+      await firebaseReviewsRef.push(newReview);
+    } catch (err) {
+      console.warn('Firebase write failed, saving locally:', err);
+      const local = getLocalStorageReviews();
+      local.unshift(newReview);
+      saveToLocalStorage(local);
+      renderReviews(true);
+    }
+  } else {
+    // Firebase not available — fallback to localStorage
+    const local = getLocalStorageReviews();
+    local.unshift(newReview);
+    saveToLocalStorage(local);
+    renderReviews(true);
+  }
 
   closeReviewModal();
-  renderReviews(true);
 
   // Scroll smoothly to the reviews section
   setTimeout(() => {
@@ -625,7 +685,7 @@ function submitReview(e) {
     if (reviewsSection) reviewsSection.scrollIntoView({ behavior: 'smooth' });
   }, 100);
 
-  showToast('⭐ Your review has been added! Thank you.');
+  showToast('⭐ Your review has been shared with everyone! Thank you.');
 }
 
 // --- INTERACTIVE MAP & ROUTE SYSTEM ---

@@ -19,6 +19,7 @@
   <!-- Firebase App (compat version for simplicity) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -707,10 +708,55 @@
           <label>Bio (English) *</label>
           <textarea id="newBarberBioEn" required rows="3" placeholder="Brief background, years of experience..." class="admin-form-input" style="font-family:inherit; resize:vertical;"></textarea>
         </div>
+
+        <!-- ── Avatar / Photo Source ── -->
         <div class="admin-form-group">
-          <label>Avatar / Photo URL *</label>
-          <input type="url" id="newBarberAvatar" required placeholder="https://images.unsplash.com/..." class="admin-form-input">
+          <label>Avatar / Photo *</label>
+          <div class="img-source-tabs">
+            <button type="button" class="img-source-tab active" id="barberTabUpload" onclick="switchImgTab('barber','upload')">
+              <i class="fa-solid fa-upload"></i> Upload from PC
+            </button>
+            <button type="button" class="img-source-tab" id="barberTabUrl" onclick="switchImgTab('barber','url')">
+              <i class="fa-solid fa-link"></i> Paste URL
+            </button>
+          </div>
+
+          <!-- Upload panel -->
+          <div class="img-source-panel active" id="barberPanelUpload">
+            <div class="img-dropzone" id="barberDropzone"
+                 ondragover="handleDragOver(event,'barberDropzone')"
+                 ondragleave="handleDragLeave(event,'barberDropzone')"
+                 ondrop="handleDrop(event,'barberDropzone','barberFileInput','barberPreview')">
+              <input type="file" id="barberFileInput" accept="image/*"
+                     onchange="handleFileSelect(this,'barberPreview')">
+              <i class="fa-solid fa-cloud-arrow-up img-dropzone-icon"></i>
+              <div class="img-dropzone-text">
+                <strong>Click or drag & drop a photo here</strong>
+                Supported: JPG, PNG, WEBP, GIF
+              </div>
+              <p class="img-dropzone-hint">Max size: 5 MB</p>
+            </div>
+            <div class="img-preview-wrap" id="barberPreview">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearImgPreview('barberPreview','barberFileInput')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- URL panel -->
+          <div class="img-source-panel" id="barberPanelUrl">
+            <input type="url" id="newBarberAvatar" placeholder="https://images.unsplash.com/..." class="admin-form-input"
+                   oninput="previewFromUrl(this.value,'barberUrlPreview')">
+            <div class="img-preview-wrap" id="barberUrlPreview" style="margin-top:0.65rem;">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearUrlPreview('newBarberAvatar','barberUrlPreview')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
         </div>
+
         <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
           <button type="button" class="btn-secondary" onclick="closeAddBarberModal()">Cancel</button>
           <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Add Barber</button>
@@ -740,13 +786,218 @@
             <option value="styling">VIP Styling & Rituals</option>
           </select>
         </div>
+                <!-- Image Source Tabs -->
         <div class="admin-form-group">
-          <label>Image URL *</label>
-          <input type="url" id="newGalleryImg" required placeholder="https://images.unsplash.com/..." class="admin-form-input">
+          <label>Photo Image *</label>
+          <div class="img-source-tabs">
+            <button type="button" class="img-source-tab active" id="galleryTabUpload" onclick="switchImgTab('gallery','upload')">
+              <i class="fa-solid fa-upload"></i> Upload from PC
+            </button>
+            <button type="button" class="img-source-tab" id="galleryTabUrl" onclick="switchImgTab('gallery','url')">
+              <i class="fa-solid fa-link"></i> Paste URL
+            </button>
+          </div>
+          <!-- Upload panel -->
+          <div class="img-source-panel active" id="galleryPanelUpload">
+            <div class="img-dropzone" id="galleryDropzone"
+                 ondragover="handleDragOver(event,'galleryDropzone')"
+                 ondragleave="handleDragLeave(event,'galleryDropzone')"
+                 ondrop="handleDrop(event,'galleryDropzone','galleryFileInput','galleryPreview')">
+              <input type="file" id="galleryFileInput" accept="image/*"
+                     onchange="handleFileSelect(this,'galleryPreview')">
+              <i class="fa-solid fa-cloud-arrow-up img-dropzone-icon"></i>
+              <div class="img-dropzone-text">
+                <strong>Click or drag &amp; drop a photo here</strong>
+                Supported: JPG, PNG, WEBP, GIF
+              </div>
+              <p class="img-dropzone-hint">Max size: 5 MB</p>
+            </div>
+            <div class="img-preview-wrap" id="galleryPreview">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearImgPreview('galleryPreview','galleryFileInput')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+          <!-- URL panel -->
+          <div class="img-source-panel" id="galleryPanelUrl">
+            <input type="url" id="newGalleryImg" placeholder="https://images.unsplash.com/..." class="admin-form-input"
+                   oninput="previewFromUrl(this.value,'galleryUrlPreview')">
+            <div class="img-preview-wrap" id="galleryUrlPreview" style="margin-top:0.65rem;">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearUrlPreview('newGalleryImg','galleryUrlPreview')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
           <button type="button" class="btn-secondary" onclick="closeAddGalleryModal()">Cancel</button>
           <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save Photo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Barber Modal -->
+  <div id="editBarberModal" class="modal-backdrop">
+    <div class="admin-form-box" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #E5E7EB; padding-bottom:0.75rem;">
+        <h3 style="font-size:1.15rem; font-weight:800; margin:0;"><i class="fa-solid fa-user-pen"></i> Edit Master Barber</h3>
+        <button onclick="closeEditBarberModal()" style="background:none; border:none; font-size:1.3rem; color:#6B7280; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="editBarberForm" onsubmit="submitEditBarber(event)">
+        <input type="hidden" id="editBarberId">
+        <input type="hidden" id="editBarberExistingAvatar">
+        <div class="admin-form-group">
+          <label>Full Name (English) *</label>
+          <input type="text" id="editBarberNameEn" required placeholder="e.g. Julian Drake" class="admin-form-input">
+        </div>
+        <div class="admin-form-group">
+          <label>Full Name (Amharic)</label>
+          <input type="text" id="editBarberNameAm" placeholder="e.g. ጁሊያን ድሬክ" class="admin-form-input">
+        </div>
+        <div class="admin-form-group">
+          <label>Full Name (Arabic)</label>
+          <input type="text" id="editBarberNameAr" placeholder="e.g. جوليان دريك" class="admin-form-input">
+        </div>
+        <div class="admin-form-group">
+          <label>Role / Specialty (English) *</label>
+          <input type="text" id="editBarberRoleEn" required placeholder="e.g. Senior Fade Master" class="admin-form-input">
+        </div>
+        <div class="admin-form-group">
+          <label>Bio (English) *</label>
+          <textarea id="editBarberBioEn" required rows="3" placeholder="Brief background, years of experience..." class="admin-form-input" style="font-family:inherit; resize:vertical;"></textarea>
+        </div>
+
+        <!-- Avatar / Photo Source -->
+        <div class="admin-form-group">
+          <label>Avatar / Photo (Keep current or upload new)</label>
+          <div class="img-source-tabs">
+            <button type="button" class="img-source-tab active" id="editBarberTabUpload" onclick="switchImgTab('editBarber','upload')">
+              <i class="fa-solid fa-upload"></i> Upload from PC
+            </button>
+            <button type="button" class="img-source-tab" id="editBarberTabUrl" onclick="switchImgTab('editBarber','url')">
+              <i class="fa-solid fa-link"></i> Paste URL
+            </button>
+          </div>
+
+          <!-- Upload panel -->
+          <div class="img-source-panel active" id="editBarberPanelUpload">
+            <div class="img-dropzone" id="editBarberDropzone"
+                 ondragover="handleDragOver(event,'editBarberDropzone')"
+                 ondragleave="handleDragLeave(event,'editBarberDropzone')"
+                 ondrop="handleDrop(event,'editBarberDropzone','editBarberFileInput','editBarberPreview')">
+              <input type="file" id="editBarberFileInput" accept="image/*"
+                     onchange="handleFileSelect(this,'editBarberPreview')">
+              <i class="fa-solid fa-cloud-arrow-up img-dropzone-icon"></i>
+              <div class="img-dropzone-text">
+                <strong>Click or drag &amp; drop a new photo</strong>
+                Supported: JPG, PNG, WEBP, GIF
+              </div>
+              <p class="img-dropzone-hint">Max size: 5 MB</p>
+            </div>
+            <div class="img-preview-wrap" id="editBarberPreview">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearImgPreview('editBarberPreview','editBarberFileInput')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- URL panel -->
+          <div class="img-source-panel" id="editBarberPanelUrl">
+            <input type="url" id="editBarberAvatarUrl" placeholder="https://images.unsplash.com/..." class="admin-form-input"
+                   oninput="previewFromUrl(this.value,'editBarberUrlPreview')">
+            <div class="img-preview-wrap" id="editBarberUrlPreview" style="margin-top:0.65rem;">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearUrlPreview('editBarberAvatarUrl','editBarberUrlPreview')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+          <button type="button" class="btn-secondary" onclick="closeEditBarberModal()">Cancel</button>
+          <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Gallery Photo Modal -->
+  <div id="editGalleryModal" class="modal-backdrop">
+    <div class="admin-form-box" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #E5E7EB; padding-bottom:0.75rem;">
+        <h3 style="font-size:1.15rem; font-weight:800; margin:0;"><i class="fa-solid fa-pen-to-square"></i> Edit Portfolio Photo</h3>
+        <button onclick="closeEditGalleryModal()" style="background:none; border:none; font-size:1.3rem; color:#6B7280; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="editGalleryForm" onsubmit="submitEditGallery(event)">
+        <input type="hidden" id="editGalleryId">
+        <input type="hidden" id="editGalleryExistingImg">
+        <div class="admin-form-group">
+          <label>Photo Title *</label>
+          <input type="text" id="editGalleryTitle" required placeholder="e.g. Executive Low Taper Fade" class="admin-form-input">
+        </div>
+        <div class="admin-form-group">
+          <label>Category *</label>
+          <select id="editGalleryCategory" required class="admin-form-input">
+            <option value="fades">Fades &amp; Tapers</option>
+            <option value="beards">Beard Sculpt &amp; Shave</option>
+            <option value="haircuts">Classic Cuts</option>
+            <option value="styling">VIP Styling &amp; Rituals</option>
+          </select>
+        </div>
+
+        <!-- Image Source Tabs -->
+        <div class="admin-form-group">
+          <label>Photo Image (Keep current or upload new)</label>
+          <div class="img-source-tabs">
+            <button type="button" class="img-source-tab active" id="editGalleryTabUpload" onclick="switchImgTab('editGallery','upload')">
+              <i class="fa-solid fa-upload"></i> Upload from PC
+            </button>
+            <button type="button" class="img-source-tab" id="editGalleryTabUrl" onclick="switchImgTab('editGallery','url')">
+              <i class="fa-solid fa-link"></i> Paste URL
+            </button>
+          </div>
+          <!-- Upload panel -->
+          <div class="img-source-panel active" id="editGalleryPanelUpload">
+            <div class="img-dropzone" id="editGalleryDropzone"
+                 ondragover="handleDragOver(event,'editGalleryDropzone')"
+                 ondragleave="handleDragLeave(event,'editGalleryDropzone')"
+                 ondrop="handleDrop(event,'editGalleryDropzone','editGalleryFileInput','editGalleryPreview')">
+              <input type="file" id="editGalleryFileInput" accept="image/*"
+                     onchange="handleFileSelect(this,'editGalleryPreview')">
+              <i class="fa-solid fa-cloud-arrow-up img-dropzone-icon"></i>
+              <div class="img-dropzone-text">
+                <strong>Click or drag &amp; drop a new photo</strong>
+                Supported: JPG, PNG, WEBP, GIF
+              </div>
+              <p class="img-dropzone-hint">Max size: 5 MB</p>
+            </div>
+            <div class="img-preview-wrap" id="editGalleryPreview">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearImgPreview('editGalleryPreview','editGalleryFileInput')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+          <!-- URL panel -->
+          <div class="img-source-panel" id="editGalleryPanelUrl">
+            <input type="url" id="editGalleryImgUrl" placeholder="https://images.unsplash.com/..." class="admin-form-input"
+                   oninput="previewFromUrl(this.value,'editGalleryUrlPreview')">
+            <div class="img-preview-wrap" id="editGalleryUrlPreview" style="margin-top:0.65rem;">
+              <img src="" alt="Preview">
+              <button type="button" class="img-preview-clear" onclick="clearUrlPreview('editGalleryImgUrl','editGalleryUrlPreview')">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+          <button type="button" class="btn-secondary" onclick="closeEditGalleryModal()">Cancel</button>
+          <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save Changes</button>
         </div>
       </form>
     </div>

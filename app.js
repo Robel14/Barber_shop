@@ -18,6 +18,7 @@ const FIREBASE_CONFIG = {
 };
 
 let firebaseDb = null;
+let firebaseStorage = null;
 let firebaseReviewsRef = null;
 let firebaseBarbersRef = null;
 let firebaseGalleryRef = null;
@@ -31,6 +32,13 @@ function initFirebase() {
       firebase.initializeApp(FIREBASE_CONFIG);
     }
     firebaseDb = firebase.database();
+    try {
+      if (firebase.storage) {
+        firebaseStorage = firebase.storage();
+      }
+    } catch (stgErr) {
+      console.warn('Firebase Storage initialization notice:', stgErr);
+    }
     firebaseReviewsRef = firebaseDb.ref('reviews');
     firebaseBarbersRef = firebaseDb.ref('barbers');
     firebaseGalleryRef = firebaseDb.ref('gallery');
@@ -1926,9 +1934,14 @@ function renderAdminBarbers() {
         <div class="admin-card-footer">
           <span style="font-size:0.75rem; color:#6B7280; font-family:monospace;">ID: ${b.id}</span>
           ${!isAny ? `
-            <button class="admin-btn-action danger" onclick="deleteAdminBarber('${b.id}')">
-              <i class="fa-solid fa-trash"></i> Remove
-            </button>
+            <div style="display:flex; gap:0.4rem;">
+              <button class="admin-btn-action" onclick="openEditBarberModal('${b.id}')">
+                <i class="fa-solid fa-pen-to-square"></i> Edit
+              </button>
+              <button class="admin-btn-action danger" onclick="deleteAdminBarber('${b.id}')">
+                <i class="fa-solid fa-trash"></i> Remove
+              </button>
+            </div>
           ` : `
             <span style="font-size:0.72rem; color:#9CA3AF; font-style:italic;">Default System Slot</span>
           `}
@@ -1942,6 +1955,8 @@ function renderAdminBarbers() {
 function openAddBarberModal() {
   const modal = document.getElementById('addBarberModal');
   if (modal) modal.classList.add('active');
+  // Reset to upload tab on open
+  switchImgTab('barber', 'upload');
 }
 
 function closeAddBarberModal() {
@@ -1956,27 +1971,36 @@ function submitAddBarber(e) {
   const nameAr = document.getElementById('newBarberNameAr').value.trim() || nameEn;
   const roleEn = document.getElementById('newBarberRoleEn').value.trim();
   const bioEn = document.getElementById('newBarberBioEn').value.trim();
-  const avatar = document.getElementById('newBarberAvatar').value.trim();
 
-  const newBarber = {
-    id: 'b-' + Date.now(),
-    name: { en: nameEn, am: nameAm, ar: nameAr },
-    role: { en: roleEn, am: roleEn, ar: roleEn },
-    bio: { en: bioEn, am: bioEn, ar: bioEn },
-    avatar: avatar
-  };
+  // Resolve avatar from active tab
+  getActiveImageSource('barber', function(avatar) {
+    if (!avatar) {
+      showToast('⚠️ Please upload a photo or paste an image URL.');
+      return;
+    }
 
-  if (firebaseDb && firebaseBarbersRef) {
-    firebaseBarbersRef.push(newBarber);
-  } else {
-    BARBERS.push(newBarber);
-    renderTeam();
-  }
+    const newBarber = {
+      id: 'b-' + Date.now(),
+      name: { en: nameEn, am: nameAm, ar: nameAr },
+      role: { en: roleEn, am: roleEn, ar: roleEn },
+      bio: { en: bioEn, am: bioEn, ar: bioEn },
+      avatar: avatar
+    };
 
-  closeAddBarberModal();
-  document.getElementById('addBarberForm').reset();
-  renderAdminBarbers();
-  showToast(`💈 Added ${nameEn} to barbers roster!`);
+    if (firebaseDb && firebaseBarbersRef) {
+      firebaseBarbersRef.push(newBarber);
+    } else {
+      BARBERS.push(newBarber);
+      renderTeam();
+    }
+
+    closeAddBarberModal();
+    document.getElementById('addBarberForm').reset();
+    clearImgPreview('barberPreview', 'barberFileInput');
+    clearUrlPreview('newBarberAvatar', 'barberUrlPreview');
+    renderAdminBarbers();
+    showToast(`💈 Added ${nameEn} to barbers roster!`);
+  });
 }
 
 function deleteAdminBarber(id) {
@@ -2022,9 +2046,14 @@ function renderAdminGallery() {
         </div>
         <div class="admin-card-footer">
           <span style="font-size:0.72rem; color:#9CA3AF;">#${idx + 1}</span>
-          <button class="admin-btn-action danger" onclick="deleteAdminGallery('${g.id || idx}')">
-            <i class="fa-solid fa-trash"></i> Delete Photo
-          </button>
+          <div style="display:flex; gap:0.4rem;">
+            <button class="admin-btn-action" onclick="openEditGalleryModal('${g.id || idx}')">
+              <i class="fa-solid fa-pen-to-square"></i> Edit
+            </button>
+            <button class="admin-btn-action danger" onclick="deleteAdminGallery('${g.id || idx}')">
+              <i class="fa-solid fa-trash"></i> Delete Photo
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -2035,6 +2064,8 @@ function renderAdminGallery() {
 function openAddGalleryModal() {
   const modal = document.getElementById('addGalleryModal');
   if (modal) modal.classList.add('active');
+  // Reset to upload tab on open
+  switchImgTab('gallery', 'upload');
 }
 
 function closeAddGalleryModal() {
@@ -2046,26 +2077,35 @@ function submitAddGallery(e) {
   e.preventDefault();
   const title = document.getElementById('newGalleryTitle').value.trim();
   const category = document.getElementById('newGalleryCategory').value;
-  const img = document.getElementById('newGalleryImg').value.trim();
 
-  const newPhoto = {
-    id: 'g-' + Date.now(),
-    title: title,
-    category: category,
-    img: img
-  };
+  // Resolve image from active tab
+  getActiveImageSource('gallery', function(img) {
+    if (!img) {
+      showToast('⚠️ Please upload a photo or paste an image URL.');
+      return;
+    }
 
-  if (firebaseDb && firebaseGalleryRef) {
-    firebaseGalleryRef.push(newPhoto);
-  } else {
-    GALLERY_ITEMS.unshift(newPhoto);
-    renderGallery('all');
-  }
+    const newPhoto = {
+      id: 'g-' + Date.now(),
+      title: title,
+      category: category,
+      img: img
+    };
 
-  closeAddGalleryModal();
-  document.getElementById('addGalleryForm').reset();
-  renderAdminGallery();
-  showToast('📸 New portfolio photo added!');
+    if (firebaseDb && firebaseGalleryRef) {
+      firebaseGalleryRef.push(newPhoto);
+    } else {
+      GALLERY_ITEMS.unshift(newPhoto);
+      renderGallery('all');
+    }
+
+    closeAddGalleryModal();
+    document.getElementById('addGalleryForm').reset();
+    clearImgPreview('galleryPreview', 'galleryFileInput');
+    clearUrlPreview('newGalleryImg', 'galleryUrlPreview');
+    renderAdminGallery();
+    showToast('📸 New portfolio photo added!');
+  });
 }
 
 function deleteAdminGallery(idOrIndex) {
@@ -2216,3 +2256,394 @@ function adminResetDefaultData() {
   renderAdminReviews();
 }
 
+// ============================================================
+// IMAGE UPLOAD HELPERS (PC Upload + URL + Drag & Drop)
+// ============================================================
+
+/**
+ * Switch between the 'upload' and 'url' panels for a given modal context.
+ * @param {string} ctx - 'barber' or 'gallery'
+ * @param {string} tab - 'upload' or 'url'
+ */
+function switchImgTab(ctx, tab) {
+  const tabUpload   = document.getElementById(ctx + 'TabUpload');
+  const tabUrl      = document.getElementById(ctx + 'TabUrl');
+  const panelUpload = document.getElementById(ctx + 'PanelUpload');
+  const panelUrl    = document.getElementById(ctx + 'PanelUrl');
+  if (!tabUpload || !tabUrl || !panelUpload || !panelUrl) return;
+
+  if (tab === 'upload') {
+    tabUpload.classList.add('active');
+    tabUrl.classList.remove('active');
+    panelUpload.classList.add('active');
+    panelUrl.classList.remove('active');
+  } else {
+    tabUrl.classList.add('active');
+    tabUpload.classList.remove('active');
+    panelUrl.classList.add('active');
+    panelUpload.classList.remove('active');
+  }
+}
+
+function handleDragOver(e, zoneId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const zone = document.getElementById(zoneId);
+  if (zone) zone.classList.add('drag-over');
+}
+
+function handleDragLeave(e, zoneId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const zone = document.getElementById(zoneId);
+  if (zone) zone.classList.remove('drag-over');
+}
+
+function handleDrop(e, zoneId, inputId, previewId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const zone = document.getElementById(zoneId);
+  if (zone) zone.classList.remove('drag-over');
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) {
+    showToast('Please drop a valid image file.');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Image too large. Maximum size is 5 MB.');
+    return;
+  }
+  const input = document.getElementById(inputId);
+  if (input && typeof DataTransfer !== 'undefined') {
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+    } catch (_) {}
+  }
+  showPreviewFromFile(file, previewId);
+}
+
+function handleFileSelect(input, previewId) {
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Image too large. Maximum size is 5 MB.');
+    input.value = '';
+    return;
+  }
+  showPreviewFromFile(file, previewId);
+}
+
+function showPreviewFromFile(file, previewId) {
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const wrap = document.getElementById(previewId);
+    if (!wrap) return;
+    const img = wrap.querySelector('img');
+    if (img) img.src = evt.target.result;
+    wrap.classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewFromUrl(url, previewId) {
+  const wrap = document.getElementById(previewId);
+  if (!wrap) return;
+  if (!url || !(url.startsWith('http') || url.startsWith('data:'))) {
+    wrap.classList.remove('visible');
+    return;
+  }
+  const img = wrap.querySelector('img');
+  if (img) {
+    img.src = url;
+    img.onerror = function() { wrap.classList.remove('visible'); };
+    img.onload  = function() { wrap.classList.add('visible'); };
+  }
+}
+
+function clearImgPreview(previewId, inputId) {
+  const wrap = document.getElementById(previewId);
+  if (wrap) {
+    wrap.classList.remove('visible');
+    const img = wrap.querySelector('img');
+    if (img) img.src = '';
+  }
+  const input = document.getElementById(inputId);
+  if (input) input.value = '';
+}
+
+function clearUrlPreview(inputId, previewId) {
+  const input = document.getElementById(inputId);
+  if (input) input.value = '';
+  const wrap = document.getElementById(previewId);
+  if (wrap) {
+    wrap.classList.remove('visible');
+    const img = wrap.querySelector('img');
+    if (img) img.src = '';
+  }
+}
+
+// --- FIREBASE STORAGE & IMAGE SOURCE HELPERS ---
+
+function uploadToFirebaseStorage(file, folder, cb) {
+  if (!firebaseStorage) {
+    console.warn("Firebase Storage not available, using local data URL fallback");
+    const reader = new FileReader();
+    reader.onload = function(evt) { cb(evt.target.result); };
+    reader.onerror = function() { cb(''); };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  showToast('⏳ Uploading image to cloud storage...');
+  const cleanName = (file.name || 'photo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${folder}/${Date.now()}_${cleanName}`;
+  const storageRef = firebaseStorage.ref().child(path);
+
+  const uploadTask = storageRef.put(file, {
+    contentType: file.type || 'image/jpeg'
+  });
+
+  uploadTask.on(
+    'state_changed',
+    null,
+    function(error) {
+      console.warn('Firebase Storage upload failed, falling back to data URL:', error);
+      showToast('⚠️ Cloud upload notice: saving locally...');
+      const reader = new FileReader();
+      reader.onload = function(evt) { cb(evt.target.result); };
+      reader.onerror = function() { cb(''); };
+      reader.readAsDataURL(file);
+    },
+    function() {
+      uploadTask.snapshot.ref.getDownloadURL().then(function(downloadUrl) {
+        showToast(' Cloud photo uploaded successfully!');
+        cb(downloadUrl);
+      }).catch(function(urlErr) {
+        console.warn('Failed to retrieve download URL, using data URL fallback:', urlErr);
+        const reader = new FileReader();
+        reader.onload = function(evt) { cb(evt.target.result); };
+        reader.onerror = function() { cb(''); };
+        reader.readAsDataURL(file);
+      });
+    }
+  );
+}
+
+function getActiveImageSource(ctx, cb) {
+  const tabUpload = document.getElementById(ctx + 'TabUpload');
+  const isUpload  = tabUpload && tabUpload.classList.contains('active');
+
+  let fileInputId = '';
+  let urlInputId = '';
+  let existingValId = '';
+  let folder = 'general';
+
+  if (ctx === 'barber') {
+    fileInputId = 'barberFileInput';
+    urlInputId = 'newBarberAvatar';
+    folder = 'barbers';
+  } else if (ctx === 'gallery') {
+    fileInputId = 'galleryFileInput';
+    urlInputId = 'newGalleryImg';
+    folder = 'gallery';
+  } else if (ctx === 'editBarber') {
+    fileInputId = 'editBarberFileInput';
+    urlInputId = 'editBarberAvatarUrl';
+    existingValId = 'editBarberExistingAvatar';
+    folder = 'barbers';
+  } else if (ctx === 'editGallery') {
+    fileInputId = 'editGalleryFileInput';
+    urlInputId = 'editGalleryImgUrl';
+    existingValId = 'editGalleryExistingImg';
+    folder = 'gallery';
+  }
+
+  const existingVal = existingValId ? (document.getElementById(existingValId)?.value || '') : '';
+
+  if (isUpload) {
+    const input = document.getElementById(fileInputId);
+    const file  = input && input.files && input.files[0];
+    if (file) {
+      uploadToFirebaseStorage(file, folder, cb);
+    } else {
+      // In edit mode, if no new file is chosen, keep existing photo
+      cb(existingVal || '');
+    }
+  } else {
+    const urlInput = document.getElementById(urlInputId);
+    const val = urlInput ? urlInput.value.trim() : '';
+    cb(val || existingVal || '');
+  }
+}
+
+// --- ADMIN EDIT MODAL HANDLERS ---
+
+function openEditBarberModal(id) {
+  const barber = BARBERS.find(b => b.id === id);
+  if (!barber) return;
+
+  const idEl = document.getElementById('editBarberId');
+  const existEl = document.getElementById('editBarberExistingAvatar');
+  const nameEnEl = document.getElementById('editBarberNameEn');
+  const nameAmEl = document.getElementById('editBarberNameAm');
+  const nameArEl = document.getElementById('editBarberNameAr');
+  const roleEnEl = document.getElementById('editBarberRoleEn');
+  const bioEnEl = document.getElementById('editBarberBioEn');
+  const urlEl = document.getElementById('editBarberAvatarUrl');
+  const fileEl = document.getElementById('editBarberFileInput');
+
+  if (idEl) idEl.value = barber.id;
+  if (existEl) existEl.value = barber.avatar || '';
+  if (nameEnEl) nameEnEl.value = (barber.name && barber.name.en) ? barber.name.en : (barber.name || '');
+  if (nameAmEl) nameAmEl.value = (barber.name && barber.name.am) ? barber.name.am : '';
+  if (nameArEl) nameArEl.value = (barber.name && barber.name.ar) ? barber.name.ar : '';
+  if (roleEnEl) roleEnEl.value = (barber.role && barber.role.en) ? barber.role.en : (barber.role || '');
+  if (bioEnEl) bioEnEl.value = (barber.bio && barber.bio.en) ? barber.bio.en : (barber.bio || '');
+
+  if (fileEl) fileEl.value = '';
+  if (urlEl) urlEl.value = barber.avatar || '';
+
+  // Set existing image in preview
+  const previewWrap = document.getElementById('editBarberPreview');
+  if (previewWrap && barber.avatar) {
+    const img = previewWrap.querySelector('img');
+    if (img) img.src = barber.avatar;
+    previewWrap.classList.add('visible');
+  } else if (previewWrap) {
+    previewWrap.classList.remove('visible');
+  }
+
+  previewFromUrl(barber.avatar || '', 'editBarberUrlPreview');
+  switchImgTab('editBarber', 'upload');
+
+  const modal = document.getElementById('editBarberModal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeEditBarberModal() {
+  const modal = document.getElementById('editBarberModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function submitEditBarber(e) {
+  e.preventDefault();
+  const id = document.getElementById('editBarberId').value;
+  const barber = BARBERS.find(b => b.id === id);
+  if (!barber) return;
+
+  const nameEn = document.getElementById('editBarberNameEn').value.trim();
+  const nameAm = document.getElementById('editBarberNameAm').value.trim() || nameEn;
+  const nameAr = document.getElementById('editBarberNameAr').value.trim() || nameEn;
+  const roleEn = document.getElementById('editBarberRoleEn').value.trim();
+  const bioEn = document.getElementById('editBarberBioEn').value.trim();
+
+  getActiveImageSource('editBarber', function(avatar) {
+    const finalAvatar = avatar || barber.avatar;
+
+    const updatedData = {
+      name: { en: nameEn, am: nameAm, ar: nameAr },
+      role: { en: roleEn, am: roleEn, ar: roleEn },
+      bio: { en: bioEn, am: bioEn, ar: bioEn },
+      avatar: finalAvatar
+    };
+
+    // Update in memory
+    Object.assign(barber, updatedData);
+
+    // Update in Firebase Realtime Database
+    if (firebaseDb && firebaseBarbersRef) {
+      if (barber.firebaseKey) {
+        firebaseBarbersRef.child(barber.firebaseKey).update(updatedData);
+      } else {
+        firebaseBarbersRef.orderByChild('id').equalTo(id).once('value', snap => {
+          snap.forEach(child => child.ref.update(updatedData));
+        });
+      }
+    }
+
+    closeEditBarberModal();
+    renderTeam();
+    renderAdminBarbers();
+    showToast(`💈 Updated barber "${nameEn}" successfully!`);
+  });
+}
+
+function openEditGalleryModal(idOrIndex) {
+  const item = GALLERY_ITEMS.find((g, i) => g.id === idOrIndex || String(i) === String(idOrIndex));
+  if (!item) return;
+
+  const idEl = document.getElementById('editGalleryId');
+  const existEl = document.getElementById('editGalleryExistingImg');
+  const titleEl = document.getElementById('editGalleryTitle');
+  const catEl = document.getElementById('editGalleryCategory');
+  const urlEl = document.getElementById('editGalleryImgUrl');
+  const fileEl = document.getElementById('editGalleryFileInput');
+
+  if (idEl) idEl.value = item.id || idOrIndex;
+  if (existEl) existEl.value = item.img || '';
+  if (titleEl) titleEl.value = item.title || '';
+  if (catEl) catEl.value = item.category || 'fades';
+
+  if (fileEl) fileEl.value = '';
+  if (urlEl) urlEl.value = item.img || '';
+
+  // Set existing image in preview
+  const previewWrap = document.getElementById('editGalleryPreview');
+  if (previewWrap && item.img) {
+    const img = previewWrap.querySelector('img');
+    if (img) img.src = item.img;
+    previewWrap.classList.add('visible');
+  } else if (previewWrap) {
+    previewWrap.classList.remove('visible');
+  }
+
+  previewFromUrl(item.img || '', 'editGalleryUrlPreview');
+  switchImgTab('editGallery', 'upload');
+
+  const modal = document.getElementById('editGalleryModal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeEditGalleryModal() {
+  const modal = document.getElementById('editGalleryModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function submitEditGallery(e) {
+  e.preventDefault();
+  const idOrIndex = document.getElementById('editGalleryId').value;
+  const item = GALLERY_ITEMS.find((g, i) => g.id === idOrIndex || String(i) === String(idOrIndex));
+  if (!item) return;
+
+  const title = document.getElementById('editGalleryTitle').value.trim();
+  const category = document.getElementById('editGalleryCategory').value;
+
+  getActiveImageSource('editGallery', function(img) {
+    const finalImg = img || item.img;
+
+    const updatedData = {
+      title: title,
+      category: category,
+      img: finalImg
+    };
+
+    Object.assign(item, updatedData);
+
+    if (firebaseDb && firebaseGalleryRef) {
+      if (item.firebaseKey) {
+        firebaseGalleryRef.child(item.firebaseKey).update(updatedData);
+      } else {
+        firebaseGalleryRef.orderByChild('id').equalTo(item.id).once('value', snap => {
+          snap.forEach(child => child.ref.update(updatedData));
+        });
+      }
+    }
+
+    closeEditGalleryModal();
+    renderGallery('all');
+    renderAdminGallery();
+    showToast(`📸 Updated photo "${title}" successfully!`);
+  });
+}
